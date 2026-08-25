@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Backseat P2P - Master Edition</title>
+    <title>Backseat P2P - Pro Mobile UX</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
     <style>
@@ -22,8 +22,7 @@
 
         .sidebar-header { padding: 20px; background: #1a202c; border-bottom: 2px solid var(--primary); min-width: 300px; }
         .server-list { flex-grow: 1; overflow-y: auto; padding: 10px; min-width: 300px; }
-        .server-item { background: var(--panel); padding: 12px; border-radius: 6px; margin-bottom: 8px; border-left: 4px solid #333; cursor: pointer; transition: 0.2s; }
-        .server-item:hover { transform: translateX(5px); background: #1c232e; }
+        .server-item { background: var(--panel); padding: 18px; border-radius: 10px; margin-bottom: 12px; border-left: 4px solid #333; cursor: pointer; transition: 0.2s; }
 
         /* Viewer Container */
         .viewer-container { flex-grow: 1; display: flex; flex-direction: column; position: relative; width: 100%; }
@@ -36,35 +35,36 @@
 
         .stage { flex-grow: 1; background: #000; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
         #remote-video { width: 100%; height: 100%; object-fit: contain; }
-        #local-preview { width: 100px; position: absolute; bottom: 20px; right: 20px; border: 2px solid var(--primary); border-radius: 8px; z-index: 100; box-shadow: 0 0 15px rgba(0,0,0,0.8); }
+        #local-preview { width: 100px; position: absolute; bottom: 20px; right: 20px; border: 2px solid var(--primary); border-radius: 8px; z-index: 100; }
 
-        /* Botão de Menu (Sempre Visível) */
+        /* Botões Estilizados */
         .btn-toggle {
             background: var(--primary); color: #000; border: none;
-            width: 42px; height: 40px; border-radius: 8px;
+            width: 42px; height: 42px; border-radius: 10px;
             font-size: 1.4em; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
-            font-weight: bold; flex-shrink: 0;
+            flex-shrink: 0;
         }
 
-        /* Áudio e LED */
-        .audio-controls { display: flex; align-items: center; gap: 8px; background: #111; padding: 5px 10px; border-radius: 20px; border: 1px solid #333; }
-        #audio-led { width: 10px; height: 10px; background: #333; border-radius: 50%; transition: 0.1s; }
+        .audio-controls { display: flex; align-items: center; gap: 8px; background: #111; padding: 5px 12px; border-radius: 20px; border: 1px solid #333; }
+        #audio-led { width: 12px; height: 12px; background: #333; border-radius: 50%; transition: 0.1s; }
         .led-active { background: var(--success) !important; box-shadow: 0 0 10px var(--success); }
-        input[type=range] { width: 50px; accent-color: var(--primary); cursor: pointer; }
+        input[type=range] { width: 60px; accent-color: var(--primary); cursor: pointer; }
 
-        input { background: #1a202c; border: 1px solid #333; color: white; padding: 10px; border-radius: 4px; width: 100%; margin-bottom: 8px; box-sizing: border-box; }
-        .btn-host { background: var(--primary); color: #000; padding: 10px; border-radius: 4px; border: none; font-weight: bold; cursor: pointer; width: 100%; }
+        input { background: #1a202c; border: 1px solid #333; color: white; padding: 12px; border-radius: 8px; width: 100%; margin-bottom: 10px; box-sizing: border-box; }
+        .btn-host { background: var(--primary); color: #000; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; width: 100%; }
 
         #click-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 50; text-align: center; }
 
-        /* Ocultar status em telas pequenas para caber o essencial */
-        @media (max-width: 450px) { #status-text { display: none; } }
-
-        /* Mobile Adjustments */
+        /* ========================================== */
+        /* ESTRATÉGIA MOBILE: BARRA PERSISTENTE NO TOPO */
+        /* ========================================== */
         @media (max-width: 768px) {
+            .top-bar { height: 60px; padding: 0 10px; }
             .sidebar { position: fixed; height: 100%; box-shadow: 10px 0 30px rgba(0,0,0,0.5); }
             .sidebar.collapsed { transform: translateX(-100%); width: 300px; }
+            #status-text { display: none; }
+            input[type=range] { width: 70px; }
         }
     </style>
 </head>
@@ -82,8 +82,8 @@
 
     <!-- Container Principal -->
     <div class="viewer-container">
+        <!-- Barra de Ferramentas (No topo no PC, no rodapé no Mobile) -->
         <div class="top-bar">
-            <!-- Botão de Menu -->
             <button class="btn-toggle" onclick="toggleSidebar()">☰</button>
 
             <div id="status-text" style="font-size: 0.8em; color: #888;">P2P Pronto</div>
@@ -96,10 +96,11 @@
             <button onclick="document.getElementById('main-stage').requestFullscreen()" style="background:none; border:none; color:#fff; font-size: 1.5em; cursor:pointer;">⛶</button>
         </div>
 
+        <!-- Área do Vídeo -->
         <div class="stage" id="main-stage">
             <div id="click-overlay" onclick="unmuteVideo()">
                 <div style="font-size: 3em; margin-bottom: 15px;">🎮</div>
-                <button style="background: var(--primary); color: #000; padding: 15px 30px; font-size: 1.2em; border-radius:8px; border:none; font-weight:bold; cursor:pointer;">ENTRAR NA PARTIDA</button>
+                <button style="background: var(--primary); color: #000; padding: 15px 30px; font-size: 1.2em; border-radius:12px; border:none; font-weight:bold; cursor:pointer;">ASSISTIR AGORA</button>
             </div>
             <video id="remote-video" autoplay playsinline></video>
             <video id="local-preview" autoplay playsinline muted style="display:none"></video>
@@ -107,6 +108,7 @@
     </div>
 
     <script>
+        // CONFIG FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyBIT8Yvb0rblzxL-5uMre04on0MkUxSxbo",
             authDomain: "banded-splicer-381114.firebaseapp.com",
