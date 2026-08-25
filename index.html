@@ -25,37 +25,52 @@
         .server-item { background: var(--panel); padding: 12px; border-radius: 6px; margin-bottom: 8px; border-left: 4px solid #333; cursor: pointer; transition: 0.2s; }
         .server-item:hover { transform: translateX(5px); background: #1c232e; }
 
-        /* Área do Viewer */
-        .viewer-container { flex-grow: 1; display: flex; flex-direction: column; position: relative; transition: all 0.3s; }
-        .top-bar { padding: 0 15px; background: #161a22; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; height: 60px; gap: 10px; }
+        /* Viewer Container */
+        .viewer-container { flex-grow: 1; display: flex; flex-direction: column; position: relative; width: 100%; }
+
+        .top-bar {
+            padding: 0 10px; background: #161a22;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid #333; height: 60px; gap: 5px;
+        }
 
         .stage { flex-grow: 1; background: #000; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
         #remote-video { width: 100%; height: 100%; object-fit: contain; }
-        #local-preview { width: 120px; position: absolute; bottom: 20px; right: 20px; border: 2px solid var(--primary); border-radius: 8px; z-index: 100; box-shadow: 0 0 15px rgba(0,0,0,0.8); }
+        #local-preview { width: 100px; position: absolute; bottom: 20px; right: 20px; border: 2px solid var(--primary); border-radius: 8px; z-index: 100; box-shadow: 0 0 15px rgba(0,0,0,0.8); }
 
-        /* Botões e Ferramentas */
-        .btn-toggle { background: var(--primary); color: #000; border: none; width: 40px; height: 40px; border-radius: 8px; font-size: 1.2em; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        /* Botão de Menu (Sempre Visível) */
+        .btn-toggle {
+            background: var(--primary); color: #000; border: none;
+            width: 42px; height: 40px; border-radius: 8px;
+            font-size: 1.4em; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; flex-shrink: 0;
+        }
 
-        .audio-controls { display: flex; align-items: center; gap: 10px; background: #111; padding: 5px 12px; border-radius: 20px; }
+        /* Áudio e LED */
+        .audio-controls { display: flex; align-items: center; gap: 8px; background: #111; padding: 5px 10px; border-radius: 20px; border: 1px solid #333; }
         #audio-led { width: 10px; height: 10px; background: #333; border-radius: 50%; transition: 0.1s; }
         .led-active { background: var(--success) !important; box-shadow: 0 0 10px var(--success); }
-        input[type=range] { width: 60px; accent-color: var(--primary); cursor: pointer; }
+        input[type=range] { width: 50px; accent-color: var(--primary); cursor: pointer; }
 
         input { background: #1a202c; border: 1px solid #333; color: white; padding: 10px; border-radius: 4px; width: 100%; margin-bottom: 8px; box-sizing: border-box; }
         .btn-host { background: var(--primary); color: #000; padding: 10px; border-radius: 4px; border: none; font-weight: bold; cursor: pointer; width: 100%; }
 
         #click-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 50; text-align: center; }
 
+        /* Ocultar status em telas pequenas para caber o essencial */
+        @media (max-width: 450px) { #status-text { display: none; } }
+
         /* Mobile Adjustments */
         @media (max-width: 768px) {
-            .sidebar { position: fixed; height: 100%; }
+            .sidebar { position: fixed; height: 100%; box-shadow: 10px 0 30px rgba(0,0,0,0.5); }
             .sidebar.collapsed { transform: translateX(-100%); width: 300px; }
         }
     </style>
 </head>
 <body>
     <!-- Sidebar Retrátil -->
-    <div class="sidebar" id="sidebar">
+    <div class="sidebar collapsed" id="sidebar">
         <div class="sidebar-header">
             <h3 style="margin:0 0 10px 0; color:var(--primary);">🕹️ BACKSEAT P2P</h3>
             <input type="text" id="host-name" placeholder="Nick da Sala">
@@ -68,7 +83,7 @@
     <!-- Container Principal -->
     <div class="viewer-container">
         <div class="top-bar">
-            <!-- Botão de Esconder/Mostrar -->
+            <!-- Botão de Menu -->
             <button class="btn-toggle" onclick="toggleSidebar()">☰</button>
 
             <div id="status-text" style="font-size: 0.8em; color: #888;">P2P Pronto</div>
