@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Backseat P2P - Pro Mobile UX</title>
+    <title>Backseat P2P - Master Edition</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
     <style>
@@ -12,103 +12,83 @@
         body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; height: 100vh; overflow: hidden; }
 
         /* Sidebar Retrátil */
-        .sidebar {
-            width: 300px; background: #0f1218; border-right: 1px solid #1e2530;
-            display: flex; flex-direction: column; flex-shrink: 0;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative; z-index: 2000;
-        }
-        .sidebar.collapsed { width: 0; border-right: none; overflow: hidden; }
+        .sidebar { width: 300px; background: #0f1218; border-right: 1px solid #1e2530; display: flex; flex-direction: column; flex-shrink: 0; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2000; }
+        .sidebar.collapsed { transform: translateX(-100%); position: absolute; height: 100%; }
+        .sidebar-header { padding: 20px; background: #1a202c; border-bottom: 2px solid var(--primary); }
+        .server-list { flex-grow: 1; overflow-y: auto; padding: 10px; }
+        .server-item { background: var(--panel); padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #333; cursor: pointer; }
 
-        .sidebar-header { padding: 20px; background: #1a202c; border-bottom: 2px solid var(--primary); min-width: 300px; }
-        .server-list { flex-grow: 1; overflow-y: auto; padding: 10px; min-width: 300px; }
-        .server-item { background: var(--panel); padding: 18px; border-radius: 10px; margin-bottom: 12px; border-left: 4px solid #333; cursor: pointer; transition: 0.2s; }
-
-        /* Viewer Container */
         .viewer-container { flex-grow: 1; display: flex; flex-direction: column; position: relative; width: 100%; }
+        .top-bar { padding: 0 15px; background: #161a22; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #333; height: 60px; }
 
-        .top-bar {
-            padding: 0 10px; background: #161a22;
-            display: flex; align-items: center; justify-content: space-between;
-            border-bottom: 1px solid #333; height: 60px; gap: 5px;
-        }
+        /* SELETOR DE JANELAS (FIXED) */
+        #source-picker { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); display: none; flex-direction: column; padding: 40px; z-index: 9999; overflow-y: auto; align-items: center; }
+        .source-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; width: 100%; max-width: 1000px; margin-top: 20px; }
+        .source-card { background: #252d3d; border-radius: 8px; padding: 10px; cursor: pointer; text-align: center; border: 2px solid transparent; transition: 0.2s; }
+        .source-card:hover { border-color: var(--primary); transform: scale(1.05); }
+        .source-card img { width: 100%; border-radius: 4px; margin-bottom: 5px; }
+        .source-card span { font-size: 11px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
         .stage { flex-grow: 1; background: #000; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
         #remote-video { width: 100%; height: 100%; object-fit: contain; }
-        #local-preview { width: 100px; position: absolute; bottom: 20px; right: 20px; border: 2px solid var(--primary); border-radius: 8px; z-index: 100; }
+        #local-preview { width: 120px; position: absolute; bottom: 20px; right: 20px; border: 2px solid var(--primary); border-radius: 8px; z-index: 100; display: none; }
 
-        /* Botões Estilizados */
-        .btn-toggle {
-            background: var(--primary); color: #000; border: none;
-            width: 42px; height: 42px; border-radius: 10px;
-            font-size: 1.4em; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            flex-shrink: 0;
-        }
-
-        .audio-controls { display: flex; align-items: center; gap: 8px; background: #111; padding: 5px 12px; border-radius: 20px; border: 1px solid #333; }
-        #audio-led { width: 12px; height: 12px; background: #333; border-radius: 50%; transition: 0.1s; }
+        .btn-toggle { background: var(--primary); color: #000; border: none; width: 42px; height: 40px; border-radius: 8px; font-size: 1.4em; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .audio-controls { display: flex; align-items: center; gap: 8px; background: #111; padding: 5px 10px; border-radius: 20px; }
+        #audio-led { width: 10px; height: 10px; background: #333; border-radius: 50%; }
         .led-active { background: var(--success) !important; box-shadow: 0 0 10px var(--success); }
-        input[type=range] { width: 60px; accent-color: var(--primary); cursor: pointer; }
 
-        input { background: #1a202c; border: 1px solid #333; color: white; padding: 12px; border-radius: 8px; width: 100%; margin-bottom: 10px; box-sizing: border-box; }
-        .btn-host { background: var(--primary); color: #000; padding: 12px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; width: 100%; }
+        input { background: #1a202c; border: 1px solid #333; color: white; padding: 10px; border-radius: 4px; width: 100%; margin-bottom: 8px; }
+        .btn-host { background: var(--primary); color: #000; padding: 10px; border-radius: 4px; border: none; font-weight: bold; cursor: pointer; width: 100%; }
+        #btn-stop { background: #ff4d4d !important; color: white; display: none; }
 
         #click-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 50; text-align: center; }
 
-        /* ========================================== */
-        /* ESTRATÉGIA MOBILE: BARRA PERSISTENTE NO TOPO */
-        /* ========================================== */
-        @media (max-width: 768px) {
-            .top-bar { height: 60px; padding: 0 10px; }
-            .sidebar { position: fixed; height: 100%; box-shadow: 10px 0 30px rgba(0,0,0,0.5); }
-            .sidebar.collapsed { transform: translateX(-100%); width: 300px; }
-            #status-text { display: none; }
-            input[type=range] { width: 70px; }
-        }
+        @media (max-width: 768px) { .sidebar { position: fixed; height: 100%; } .sidebar.collapsed { transform: translateX(-100%); width: 300px; } }
     </style>
 </head>
 <body>
-    <!-- Sidebar Retrátil -->
+    <!-- Seletor de Janelas -->
+    <div id="source-picker">
+        <h2 style="color:var(--primary);">📺 O QUE VOCÊ QUER TRANSMITIR?</h2>
+        <div class="source-grid" id="source-grid"></div>
+        <button onclick="document.getElementById('source-picker').style.display='none'" style="margin-top:20px; background:#444; color:#fff; padding:10px 20px; border:none; border-radius:5px; cursor:pointer;">Cancelar</button>
+    </div>
+
+    <!-- Barra Lateral -->
     <div class="sidebar collapsed" id="sidebar">
         <div class="sidebar-header">
             <h3 style="margin:0 0 10px 0; color:var(--primary);">🕹️ BACKSEAT P2P</h3>
             <input type="text" id="host-name" placeholder="Nick da Sala">
             <button class="btn-host" id="btn-start" onclick="hostGame()">CRIAR SALA</button>
-            <button class="btn-host" id="btn-stop" style="display:none; background:#ff4d4d;" onclick="location.reload()">FECHAR SALA</button>
+            <button class="btn-host" id="btn-stop" onclick="location.reload()">FECHAR SALA</button>
         </div>
         <div class="server-list" id="server-list"></div>
     </div>
 
     <!-- Container Principal -->
     <div class="viewer-container">
-        <!-- Barra de Ferramentas (No topo no PC, no rodapé no Mobile) -->
         <div class="top-bar">
             <button class="btn-toggle" onclick="toggleSidebar()">☰</button>
-
-            <div id="status-text" style="font-size: 0.8em; color: #888;">P2P Pronto</div>
-
+            <div id="status-text" style="font-size: 0.8em; color: #888;">Online</div>
             <div class="audio-controls">
                 <input type="range" min="0" max="1" step="0.1" value="1" oninput="document.getElementById('remote-video').volume = this.value">
                 <div id="audio-led"></div>
             </div>
-
             <button onclick="document.getElementById('main-stage').requestFullscreen()" style="background:none; border:none; color:#fff; font-size: 1.5em; cursor:pointer;">⛶</button>
         </div>
 
-        <!-- Área do Vídeo -->
         <div class="stage" id="main-stage">
             <div id="click-overlay" onclick="unmuteVideo()">
                 <div style="font-size: 3em; margin-bottom: 15px;">🎮</div>
-                <button style="background: var(--primary); color: #000; padding: 15px 30px; font-size: 1.2em; border-radius:12px; border:none; font-weight:bold; cursor:pointer;">ASSISTIR AGORA</button>
+                <button style="background: var(--primary); color: #000; padding: 15px 30px; font-size: 1.2em; border-radius:8px; border:none; font-weight:bold;">ENTRAR NA PARTIDA</button>
             </div>
             <video id="remote-video" autoplay playsinline></video>
-            <video id="local-preview" autoplay playsinline muted style="display:none"></video>
+            <video id="local-preview" autoplay playsinline muted></video>
         </div>
     </div>
 
     <script>
-        // CONFIG FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyBIT8Yvb0rblzxL-5uMre04on0MkUxSxbo",
             authDomain: "banded-splicer-381114.firebaseapp.com",
@@ -123,17 +103,13 @@
         const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
         const myId = Math.random().toString(36).substring(7);
 
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('collapsed');
-        }
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); }
 
-        // --- LÓGICA DO LED ---
         let audioCtx;
         function startLED(stream) {
             try {
                 if (!stream || stream.getAudioTracks().length === 0) return;
                 if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                if (audioCtx.state === 'suspended') audioCtx.resume();
                 const analyser = audioCtx.createAnalyser();
                 const source = audioCtx.createMediaStreamSource(stream);
                 source.connect(analyser);
@@ -143,8 +119,7 @@
                 function pulse() {
                     analyser.getByteFrequencyData(data);
                     let vol = data.reduce((a,b) => a+b) / data.length;
-                    if (vol > 10) { led.classList.add('led-active'); led.style.opacity = Math.min(vol/40, 1); }
-                    else { led.classList.remove('led-active'); led.style.opacity = "0.3"; }
+                    if (vol > 10) led.classList.add('led-active'); else led.classList.remove('led-active');
                     requestAnimationFrame(pulse);
                 }
                 pulse();
@@ -154,21 +129,66 @@
         // --- HOST ---
         let localStream;
         async function hostGame() {
+            const name = document.getElementById('host-name').value || "Host";
             try {
-                localStream = await navigator.mediaDevices.getDisplayMedia({
-                    video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 }, cursor: "always" },
-                    audio: { autoGainControl: false, echoCancellation: false, noiseSuppression: false }
+                // Checa se está no Electron
+                if (typeof require !== 'undefined') {
+                    const { ipcRenderer } = require('electron');
+                    const sources = await ipcRenderer.invoke('get-sources');
+
+                    const picker = document.getElementById('source-picker');
+                    const grid = document.getElementById('source-grid');
+                    grid.innerHTML = '';
+                    picker.style.display = 'flex';
+
+                    sources.forEach(source => {
+                        if (source.name.includes("Backseat P2P")) return;
+                        const card = document.createElement('div');
+                        card.className = 'source-card';
+                        card.innerHTML = `<img src="${source.thumbnail}"><span>${source.name}</span>`;
+                        card.onclick = () => startCapture(source.id, name);
+                        grid.appendChild(card);
+                    });
+                } else {
+                    const stream = await navigator.mediaDevices.getDisplayMedia({
+                        video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 } },
+                        audio: true
+                    });
+                    finalizeHost(stream, name);
+                }
+            } catch (e) { alert("Erro ao abrir: " + e.message); }
+        }
+
+        async function startCapture(sourceId, name) {
+            try {
+                document.getElementById('source-picker').style.display = 'none';
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: { mandatory: { chromeMediaSource: 'desktop' } },
+                    video: {
+                        mandatory: {
+                            chromeMediaSource: 'desktop',
+                            chromeMediaSourceId: sourceId,
+                            minWidth: 1280, maxWidth: 1920, minHeight: 720, maxHeight: 1080
+                        }
+                    }
                 });
-                document.getElementById('local-preview').srcObject = localStream;
-                document.getElementById('local-preview').style.display = 'block';
-                document.getElementById('btn-start').style.display = 'none';
-                document.getElementById('btn-stop').style.display = 'block';
-                startLED(localStream);
-                db.ref('rooms/' + myId).set({ name: document.getElementById('host-name').value || "Host", id: myId });
-                db.ref('rooms/' + myId).onDisconnect().remove();
-                db.ref(`rooms/${myId}/connections`).on('child_added', snap => setupHostPeer(snap.key));
-                if(window.innerWidth < 769) toggleSidebar();
-            } catch (e) { console.error(e); }
+                finalizeHost(stream, name);
+            } catch (e) { alert("Erro ao capturar: " + e.message); }
+        }
+
+        function finalizeHost(stream, name) {
+            localStream = stream;
+            document.getElementById('local-preview').srcObject = localStream;
+            document.getElementById('local-preview').style.display = 'block';
+            document.getElementById('btn-start').style.display = 'none';
+            document.getElementById('btn-stop').style.display = 'block';
+            startLED(localStream);
+            db.ref('rooms/' + myId).set({ name: name, id: myId });
+            db.ref('rooms/' + myId).onDisconnect().remove();
+            db.ref(`rooms/${myId}/connections`).on('child_added', snap => {
+                if (snap.val().request) setupHostPeer(snap.key);
+            });
+            if(window.innerWidth < 769) toggleSidebar();
         }
 
         async function setupHostPeer(viewerId) {
@@ -212,11 +232,10 @@
                 vid.play().catch(() => document.getElementById('click-overlay').style.display = 'flex');
             };
             pc.onicecandidate = e => { if (e.candidate) ref.child('viewerCandidates').push(e.candidate.toJSON()); };
-            await ref.update({ status: 'init' });
+            await ref.set({ request: true });
             ref.child('offer').on('value', async snap => {
-                const offer = snap.val();
-                if (offer && !pc.currentRemoteDescription) {
-                    await pc.setRemoteDescription(new RTCSessionDescription(offer));
+                if (snap.val() && !pc.currentRemoteDescription) {
+                    await pc.setRemoteDescription(new RTCSessionDescription(snap.val()));
                     const answer = await pc.createAnswer();
                     await pc.setLocalDescription(answer);
                     await ref.update({ answer: { type: answer.type, sdp: answer.sdp } });
@@ -225,11 +244,7 @@
             ref.child('hostCandidates').on('child_added', snap => { pc.addIceCandidate(new RTCIceCandidate(snap.val())).catch(e => {}); });
         }
 
-        function unmuteVideo() {
-            if(audioCtx) audioCtx.resume();
-            document.getElementById('remote-video').play();
-            document.getElementById('click-overlay').style.display = 'none';
-        }
+        function unmuteVideo() { if(audioCtx) audioCtx.resume(); document.getElementById('remote-video').play(); document.getElementById('click-overlay').style.display = 'none'; }
     </script>
 </body>
 </html>
