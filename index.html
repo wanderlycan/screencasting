@@ -15,14 +15,28 @@
         .sidebar { width: 300px; background: #0f1218; border-right: 1px solid #1e2530; display: flex; flex-direction: column; flex-shrink: 0; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2000; }
         .sidebar.collapsed { transform: translateX(-100%); position: absolute; height: 100%; }
         .sidebar-header { padding: 20px; background: #1a202c; border-bottom: 2px solid var(--primary); }
+        
         .server-list { flex-grow: 1; overflow-y: auto; padding: 10px; }
         .server-item { background: var(--panel); padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #333; cursor: pointer; }
 
         .viewer-container { flex-grow: 1; display: flex; flex-direction: column; position: relative; width: 100%; }
-        .top-bar { padding: 0 15px; background: #161a22; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #333; height: 60px; }
+        
+        .top-bar { padding: 0 15px; background: #161a22; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #333; height: 60px; z-index: 10; }
+        
+        /* Botão de Menu (Hamburguer) */
+        .btn-toggle { background: var(--primary); color: #000; border: none; width: 42px; height: 40px; border-radius: 8px; font-size: 1.4em; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: opacity 0.3s; }
+        .btn-toggle.hidden-mobile { opacity: 0; pointer-events: none; }
+
+        /* Botão Flutuante para Fechar o Menu Mobile */
+        #btn-toggle-float { position: fixed; top: 10px; left: 10px; z-index: 2500; display: none; }
+        
+        @media (max-width: 768px) {
+            .sidebar.collapsed ~ #btn-toggle-float { display: none !important; }
+            .sidebar:not(.collapsed) ~ #btn-toggle-float { display: flex !important; } 
+        }
 
         /* AÇÕES DA TOP BAR (Direita) */
-        .top-bar-actions { display: flex; align-items: center; gap: 12px; position: relative; }
+        .top-bar-actions { display: flex; align-items: center; gap: 12px; position: relative; z-index: 15; }
 
         /* BOTÕES DA TOP BAR */
         .top-btn { background: none; border: none; color: #fff; font-size: 1.3em; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 8px; transition: background 0.2s; }
@@ -50,15 +64,11 @@
         #remote-video { width: 100%; height: 100%; object-fit: contain; }
         #local-preview { width: 120px; position: absolute; bottom: 20px; right: 20px; border: 2px solid var(--primary); border-radius: 8px; z-index: 100; display: none; }
 
-        .btn-toggle { background: var(--primary); color: #000; border: none; width: 42px; height: 40px; border-radius: 8px; font-size: 1.4em; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        
         input[type="text"] { background: #1a202c; border: 1px solid #333; color: white; padding: 10px; border-radius: 4px; width: 100%; margin-bottom: 8px; }
         .btn-host { background: var(--primary); color: #000; padding: 10px; border-radius: 4px; border: none; font-weight: bold; cursor: pointer; width: 100%; }
         #btn-stop { background: #ff4d4d !important; color: white; display: none; }
 
         #click-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 50; text-align: center; }
-
-        @media (max-width: 768px) { .sidebar { position: fixed; height: 100%; } .sidebar.collapsed { transform: translateX(-100%); width: 300px; } }
     </style>
 </head>
 <body>
@@ -80,17 +90,21 @@
         <div class="server-list" id="server-list"></div>
     </div>
 
+    <!-- Botão Flutuante para Fechar o Menu Mobile -->
+    <button class="btn-toggle" id="btn-toggle-float" onclick="toggleSidebar()" title="Fechar Menu">
+        ✕
+    </button>
+
     <!-- Container Principal -->
     <div class="viewer-container">
         <div class="top-bar">
-            <button class="btn-toggle" onclick="toggleSidebar()">☰</button>
+            <!-- Botão de Menu Original -->
+            <button class="btn-toggle" id="btn-toggle-org" onclick="toggleSidebar()">☰</button>
+            
             <div id="status-text" style="font-size: 0.8em; color: #888;">Online</div>
             
             <div class="top-bar-actions">
-                <!-- Botão de Download -->
                 <button class="top-btn" onclick="handleDownload()" title="Baixar / Download">📥</button>
-
-                <!-- Controle de Áudio Retrátil com LED -->
                 <div class="audio-wrapper">
                     <button class="top-btn" onclick="toggleAudioMenu(event)" title="Configurações de Áudio">
                         🔊
@@ -101,8 +115,6 @@
                         <input type="range" min="0" max="1" step="0.1" value="1" oninput="document.getElementById('remote-video').volume = this.value">
                     </div>
                 </div>
-
-                <!-- Botão Tela Cheia -->
                 <button class="top-btn" onclick="document.getElementById('main-stage').requestFullscreen()" title="Tela Cheia">⛶</button>
             </div>
         </div>
@@ -132,7 +144,18 @@
         const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
         const myId = Math.random().toString(36).substring(7);
 
-        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); }
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            const btnOrg = document.getElementById('btn-toggle-org');
+            
+            sidebar.classList.toggle('collapsed');
+            
+            if (!sidebar.classList.contains('collapsed')) {
+                btnOrg.classList.add('hidden-mobile');
+            } else {
+                btnOrg.classList.remove('hidden-mobile');
+            }
+        }
 
         // --- CONTROLE DO MENU DE ÁUDIO ---
         function toggleAudioMenu(e) {
@@ -141,7 +164,6 @@
             dropdown.classList.toggle('show');
         }
 
-        // Fecha o menu de áudio ao clicar em qualquer outro lugar da tela
         window.addEventListener('click', () => {
             const dropdown = document.getElementById('audio-dropdown');
             if (dropdown.classList.contains('show')) {
@@ -149,11 +171,9 @@
             }
         });
 
-        // --- AÇÃO DO BOTÃO DE DOWNLOAD (COLOQUE SEU LINK ABAIXO) ---
-       function handleDownload() {
-    // Redireciona para a página de Releases do repositório
-    window.open('https://github.com/wanderlycan/screencasting/releases/latest', '_blank');
-}
+        function handleDownload() {
+            window.open('https://github.com/wanderlycan/screencasting/releases/latest', '_blank');
+        }
 
         let audioCtx;
         function startLED(stream) {
@@ -232,26 +252,63 @@
             document.getElementById('btn-start').style.display = 'none';
             document.getElementById('btn-stop').style.display = 'block';
             startLED(localStream);
-            db.ref('rooms/' + myId).set({ name: name, id: myId });
-            db.ref('rooms/' + myId).onDisconnect().remove();
-            db.ref(`rooms/${myId}/connections`).on('child_added', snap => {
-                if (snap.val().request) setupHostPeer(snap.key);
+            
+            // Limpa conexões antigas do Firebase antes de registrar para evitar conflito de handshake
+            const roomRef = db.ref('rooms/' + myId);
+            roomRef.set({ name: name, id: myId });
+            roomRef.onDisconnect().remove();
+
+            // Remove listeners antigos para evitar duplicação do aperto de mão
+            const connectionsRef = roomRef.child('connections');
+            connectionsRef.off();
+            connectionsRef.on('child_added', snap => {
+                if (snap.val() && snap.val().request) {
+                    setupHostPeer(snap.key);
+                }
             });
-            if(window.innerWidth < 769) toggleSidebar();
+
+            // Fecha a barra lateral de forma segura após iniciar
+            setTimeout(() => {
+                if(window.innerWidth < 768) {
+                    const sidebar = document.getElementById('sidebar');
+                    if(!sidebar.classList.contains('collapsed')) toggleSidebar();
+                }
+            }, 200);
         }
 
         async function setupHostPeer(viewerId) {
             const pc = new RTCPeerConnection(rtcConfig);
             const ref = db.ref(`rooms/${myId}/connections/${viewerId}`);
-            localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-            pc.onicecandidate = e => { if (e.candidate) ref.child('hostCandidates').push(e.candidate.toJSON()); };
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            await ref.update({ offer: { type: offer.type, sdp: offer.sdp } });
-            ref.child('answer').on('value', async snap => {
-                if (snap.val() && !pc.currentRemoteDescription) await pc.setRemoteDescription(new RTCSessionDescription(snap.val()));
-            });
-            ref.child('viewerCandidates').on('child_added', snap => { pc.addIceCandidate(new RTCIceCandidate(snap.val())).catch(e => {}); });
+            
+            if (localStream) {
+                localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+            }
+
+            pc.onicecandidate = e => { 
+                if (e.candidate) ref.child('hostCandidates').push(e.candidate.toJSON()); 
+            };
+
+            try {
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                await ref.update({ offer: { type: offer.type, sdp: offer.sdp } });
+
+                ref.child('answer').on('value', async snap => {
+                    const answerVal = snap.val();
+                    if (answerVal && !pc.currentRemoteDescription) {
+                        await pc.setRemoteDescription(new RTCSessionDescription(answerVal));
+                    }
+                });
+
+                ref.child('viewerCandidates').on('child_added', snap => {
+                    const candidateVal = snap.val();
+                    if (candidateVal) {
+                        pc.addIceCandidate(new RTCIceCandidate(candidateVal)).catch(e => {});
+                    }
+                });
+            } catch(err) {
+                console.error("Erro no setupHostPeer:", err);
+            }
         }
 
         // --- VIEWER ---
@@ -265,7 +322,10 @@
                 const div = document.createElement('div');
                 div.className = "server-item";
                 div.innerText = rooms[id].name;
-                div.onclick = () => { connect(id); if(window.innerWidth < 769) toggleSidebar(); };
+                div.onclick = () => { 
+                    connect(id); 
+                    if(window.innerWidth < 768) toggleSidebar(); 
+                };
                 list.appendChild(div);
             }
         });
@@ -274,26 +334,43 @@
             const viewerId = Math.random().toString(36).substring(7);
             const pc = new RTCPeerConnection(rtcConfig);
             const ref = db.ref(`rooms/${hostId}/connections/${viewerId}`);
+
             pc.ontrack = e => {
                 const vid = document.getElementById('remote-video');
                 vid.srcObject = e.streams[0];
                 startLED(e.streams[0]);
                 vid.play().catch(() => document.getElementById('click-overlay').style.display = 'flex');
             };
-            pc.onicecandidate = e => { if (e.candidate) ref.child('viewerCandidates').push(e.candidate.toJSON()); };
+
+            pc.onicecandidate = e => { 
+                if (e.candidate) ref.child('viewerCandidates').push(e.candidate.toJSON()); 
+            };
+
             await ref.set({ request: true });
+
             ref.child('offer').on('value', async snap => {
-                if (snap.val() && !pc.currentRemoteDescription) {
-                    await pc.setRemoteDescription(new RTCSessionDescription(snap.val()));
+                const offerVal = snap.val();
+                if (offerVal && !pc.currentRemoteDescription) {
+                    await pc.setRemoteDescription(new RTCSessionDescription(offerVal));
                     const answer = await pc.createAnswer();
                     await pc.setLocalDescription(answer);
                     await ref.update({ answer: { type: answer.type, sdp: answer.sdp } });
                 }
             });
-            ref.child('hostCandidates').on('child_added', snap => { pc.addIceCandidate(new RTCIceCandidate(snap.val())).catch(e => {}); });
+
+            ref.child('hostCandidates').on('child_added', snap => {
+                const candidateVal = snap.val();
+                if (candidateVal) {
+                    pc.addIceCandidate(new RTCIceCandidate(candidateVal)).catch(e => {});
+                }
+            });
         }
 
-        function unmuteVideo() { if(audioCtx) audioCtx.resume(); document.getElementById('remote-video').play(); document.getElementById('click-overlay').style.display = 'none'; }
+        function unmuteVideo() { 
+            if(audioCtx) audioCtx.resume(); 
+            document.getElementById('remote-video').play(); 
+            document.getElementById('click-overlay').style.display = 'none'; 
+        }
     </script>
 </body>
 </html>
