@@ -21,6 +21,23 @@
         .viewer-container { flex-grow: 1; display: flex; flex-direction: column; position: relative; width: 100%; }
         .top-bar { padding: 0 15px; background: #161a22; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #333; height: 60px; }
 
+        /* AÇÕES DA TOP BAR (Direita) */
+        .top-bar-actions { display: flex; align-items: center; gap: 12px; position: relative; }
+
+        /* BOTÕES DA TOP BAR */
+        .top-btn { background: none; border: none; color: #fff; font-size: 1.3em; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 8px; transition: background 0.2s; }
+        .top-btn:hover { background: rgba(255, 255, 255, 0.08); }
+
+        /* PAINEL DE AUDIO FLUTUANTE */
+        .audio-wrapper { position: relative; display: flex; align-items: center; }
+        #audio-led { width: 8px; height: 8px; background: #333; border-radius: 50%; position: absolute; top: 6px; right: 6px; pointer-events: none; }
+        .led-active { background: var(--success) !important; box-shadow: 0 0 8px var(--success); }
+
+        .audio-dropdown { position: absolute; top: 50px; right: 0; background: #1a202c; border: 1px solid #333; padding: 12px 15px; border-radius: 10px; display: none; flex-direction: column; gap: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 3000; min-width: 180px; }
+        .audio-dropdown.show { display: flex; }
+        .audio-dropdown label { font-size: 0.75em; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; }
+        .audio-dropdown input[type="range"] { width: 100%; margin: 0; cursor: pointer; }
+
         /* SELETOR DE JANELAS (FIXED) */
         #source-picker { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); display: none; flex-direction: column; padding: 40px; z-index: 9999; overflow-y: auto; align-items: center; }
         .source-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; width: 100%; max-width: 1000px; margin-top: 20px; }
@@ -34,11 +51,8 @@
         #local-preview { width: 120px; position: absolute; bottom: 20px; right: 20px; border: 2px solid var(--primary); border-radius: 8px; z-index: 100; display: none; }
 
         .btn-toggle { background: var(--primary); color: #000; border: none; width: 42px; height: 40px; border-radius: 8px; font-size: 1.4em; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .audio-controls { display: flex; align-items: center; gap: 8px; background: #111; padding: 5px 10px; border-radius: 20px; }
-        #audio-led { width: 10px; height: 10px; background: #333; border-radius: 50%; }
-        .led-active { background: var(--success) !important; box-shadow: 0 0 10px var(--success); }
-
-        input { background: #1a202c; border: 1px solid #333; color: white; padding: 10px; border-radius: 4px; width: 100%; margin-bottom: 8px; }
+        
+        input[type="text"] { background: #1a202c; border: 1px solid #333; color: white; padding: 10px; border-radius: 4px; width: 100%; margin-bottom: 8px; }
         .btn-host { background: var(--primary); color: #000; padding: 10px; border-radius: 4px; border: none; font-weight: bold; cursor: pointer; width: 100%; }
         #btn-stop { background: #ff4d4d !important; color: white; display: none; }
 
@@ -71,11 +85,26 @@
         <div class="top-bar">
             <button class="btn-toggle" onclick="toggleSidebar()">☰</button>
             <div id="status-text" style="font-size: 0.8em; color: #888;">Online</div>
-            <div class="audio-controls">
-                <input type="range" min="0" max="1" step="0.1" value="1" oninput="document.getElementById('remote-video').volume = this.value">
-                <div id="audio-led"></div>
+            
+            <div class="top-bar-actions">
+                <!-- Botão de Download -->
+                <button class="top-btn" onclick="handleDownload()" title="Baixar / Download">📥</button>
+
+                <!-- Controle de Áudio Retrátil com LED -->
+                <div class="audio-wrapper">
+                    <button class="top-btn" onclick="toggleAudioMenu(event)" title="Configurações de Áudio">
+                        🔊
+                        <div id="audio-led"></div>
+                    </button>
+                    <div class="audio-dropdown" id="audio-dropdown" onclick="event.stopPropagation()">
+                        <label>Volume do Áudio</label>
+                        <input type="range" min="0" max="1" step="0.1" value="1" oninput="document.getElementById('remote-video').volume = this.value">
+                    </div>
+                </div>
+
+                <!-- Botão Tela Cheia -->
+                <button class="top-btn" onclick="document.getElementById('main-stage').requestFullscreen()" title="Tela Cheia">⛶</button>
             </div>
-            <button onclick="document.getElementById('main-stage').requestFullscreen()" style="background:none; border:none; color:#fff; font-size: 1.5em; cursor:pointer;">⛶</button>
         </div>
 
         <div class="stage" id="main-stage">
@@ -105,6 +134,26 @@
 
         function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed'); }
 
+        // --- CONTROLE DO MENU DE ÁUDIO ---
+        function toggleAudioMenu(e) {
+            e.stopPropagation();
+            const dropdown = document.getElementById('audio-dropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        // Fecha o menu de áudio ao clicar em qualquer outro lugar da tela
+        window.addEventListener('click', () => {
+            const dropdown = document.getElementById('audio-dropdown');
+            if (dropdown.classList.contains('show')) {
+                dropdown.classList.remove('show');
+            }
+        });
+
+        // --- AÇÃO DO BOTÃO DE DOWNLOAD (COLOQUE SEU LINK ABAIXO) ---
+        function handleDownload() {
+            window.open('https://seu-link-aqui.com', '_blank');
+        }
+
         let audioCtx;
         function startLED(stream) {
             try {
@@ -131,7 +180,6 @@
         async function hostGame() {
             const name = document.getElementById('host-name').value || "Host";
             try {
-                // Checa se está no Electron
                 if (typeof require !== 'undefined') {
                     const { ipcRenderer } = require('electron');
                     const sources = await ipcRenderer.invoke('get-sources');
