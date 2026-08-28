@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Backseat P2P - Master Edition</title>
+    <title>Backseat P2P - Master Edition (Optimized)</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
     <style>
@@ -11,7 +11,6 @@
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; height: 100vh; overflow: hidden; }
 
-        /* Sidebar Retrátil */
         .sidebar { width: 300px; background: #0f1218; border-right: 1px solid #1e2530; display: flex; flex-direction: column; flex-shrink: 0; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2000; }
         .sidebar.collapsed { transform: translateX(-100%); position: absolute; height: 100%; }
         .sidebar-header { padding: 20px; background: #1a202c; border-bottom: 2px solid var(--primary); }
@@ -23,11 +22,9 @@
         
         .top-bar { padding: 0 15px; background: #161a22; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #333; height: 60px; z-index: 10; }
         
-        /* Botão de Menu (Hamburguer) */
         .btn-toggle { background: var(--primary); color: #000; border: none; width: 42px; height: 40px; border-radius: 8px; font-size: 1.4em; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: opacity 0.3s; }
         .btn-toggle.hidden-mobile { opacity: 0; pointer-events: none; }
 
-        /* Botão Flutuante para Fechar o Menu Mobile */
         #btn-toggle-float { position: fixed; top: 10px; left: 10px; z-index: 2500; display: none; }
         
         @media (max-width: 768px) {
@@ -35,14 +32,10 @@
             .sidebar:not(.collapsed) ~ #btn-toggle-float { display: flex !important; } 
         }
 
-        /* AÇÕES DA TOP BAR (Direita) */
         .top-bar-actions { display: flex; align-items: center; gap: 12px; position: relative; z-index: 15; }
-
-        /* BOTÕES DA TOP BAR */
         .top-btn { background: none; border: none; color: #fff; font-size: 1.3em; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 8px; transition: background 0.2s; }
         .top-btn:hover { background: rgba(255, 255, 255, 0.08); }
 
-        /* PAINEL DE AUDIO FLUTUANTE */
         .audio-wrapper { position: relative; display: flex; align-items: center; }
         #audio-led { width: 8px; height: 8px; background: #333; border-radius: 50%; position: absolute; top: 6px; right: 6px; pointer-events: none; }
         .led-active { background: var(--success) !important; box-shadow: 0 0 8px var(--success); }
@@ -52,7 +45,6 @@
         .audio-dropdown label { font-size: 0.75em; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; }
         .audio-dropdown input[type="range"] { width: 100%; margin: 0; cursor: pointer; }
 
-        /* SELETOR DE JANELAS (FIXED) */
         #source-picker { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); display: none; flex-direction: column; padding: 40px; z-index: 9999; overflow-y: auto; align-items: center; }
         .source-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; width: 100%; max-width: 1000px; margin-top: 20px; }
         .source-card { background: #252d3d; border-radius: 8px; padding: 10px; cursor: pointer; text-align: center; border: 2px solid transparent; transition: 0.2s; }
@@ -72,14 +64,12 @@
     </style>
 </head>
 <body>
-    <!-- Seletor de Janelas -->
     <div id="source-picker">
         <h2 style="color:var(--primary);">📺 O QUE VOCÊ QUER TRANSMITIR?</h2>
         <div class="source-grid" id="source-grid"></div>
         <button onclick="document.getElementById('source-picker').style.display='none'" style="margin-top:20px; background:#444; color:#fff; padding:10px 20px; border:none; border-radius:5px; cursor:pointer;">Cancelar</button>
     </div>
 
-    <!-- Barra Lateral -->
     <div class="sidebar collapsed" id="sidebar">
         <div class="sidebar-header">
             <h3 style="margin:0 0 10px 0; color:var(--primary);">🕹️ BACKSEAT P2P</h3>
@@ -90,19 +80,12 @@
         <div class="server-list" id="server-list"></div>
     </div>
 
-    <!-- Botão Flutuante para Fechar o Menu Mobile -->
-    <button class="btn-toggle" id="btn-toggle-float" onclick="toggleSidebar()" title="Fechar Menu">
-        ✕
-    </button>
+    <button class="btn-toggle" id="btn-toggle-float" onclick="toggleSidebar()" title="Fechar Menu">✕</button>
 
-    <!-- Container Principal -->
     <div class="viewer-container">
         <div class="top-bar">
-            <!-- Botão de Menu Original -->
             <button class="btn-toggle" id="btn-toggle-org" onclick="toggleSidebar()">☰</button>
-            
             <div id="status-text" style="font-size: 0.8em; color: #888;">Online</div>
-            
             <div class="top-bar-actions">
                 <button class="top-btn" onclick="handleDownload()" title="Baixar / Download">📥</button>
                 <div class="audio-wrapper">
@@ -147,9 +130,7 @@
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const btnOrg = document.getElementById('btn-toggle-org');
-            
             sidebar.classList.toggle('collapsed');
-            
             if (!sidebar.classList.contains('collapsed')) {
                 btnOrg.classList.add('hidden-mobile');
             } else {
@@ -157,7 +138,6 @@
             }
         }
 
-        // --- CONTROLE DO MENU DE ÁUDIO ---
         function toggleAudioMenu(e) {
             e.stopPropagation();
             const dropdown = document.getElementById('audio-dropdown');
@@ -196,7 +176,24 @@
             } catch(e) {}
         }
 
-        // --- HOST ---
+        // --- FUNÇÃO AUXILIAR PARA FORÇAR ALTO BITRATE NO SDP ---
+        function setBitrate(sdp, bitrateKbps) {
+            let lines = sdp.split('\r\n');
+            let line = -1;
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].startsWith('a=mid:video')) {
+                    line = i;
+                    break;
+                }
+            }
+            if (line === -1) return sdp;
+            
+            // Adiciona parâmetros de controle de largura de banda baseados na preferência por alta taxa
+            let insertAt = line + 1;
+            lines.splice(insertAt, 0, `b=AS:${bitrateKbps}`);
+            return lines.join('\r\n');
+        }
+
         let localStream;
         async function hostGame() {
             const name = document.getElementById('host-name').value || "Host";
@@ -219,8 +216,14 @@
                         grid.appendChild(card);
                     });
                 } else {
+                    // Otimizado para 60 FPS com prioridade em alta definição de movimento (fluidos)
                     const stream = await navigator.mediaDevices.getDisplayMedia({
-                        video: { width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 60 } },
+                        video: { 
+                            width: { ideal: 1920, max: 1920 }, 
+                            height: { ideal: 1080, max: 1080 }, 
+                            frameRate: { ideal: 60, max: 60 },
+                            cursor: "always"
+                        },
                         audio: true
                     });
                     finalizeHost(stream, name);
@@ -237,7 +240,9 @@
                         mandatory: {
                             chromeMediaSource: 'desktop',
                             chromeMediaSourceId: sourceId,
-                            minWidth: 1280, maxWidth: 1920, minHeight: 720, maxHeight: 1080
+                            minWidth: 1280, maxWidth: 1920, 
+                            minHeight: 720, maxHeight: 1080,
+                            maxFrameRate: 60
                         }
                     }
                 });
@@ -253,12 +258,10 @@
             document.getElementById('btn-stop').style.display = 'block';
             startLED(localStream);
             
-            // Limpa conexões antigas do Firebase antes de registrar para evitar conflito de handshake
             const roomRef = db.ref('rooms/' + myId);
             roomRef.set({ name: name, id: myId });
             roomRef.onDisconnect().remove();
 
-            // Remove listeners antigos para evitar duplicação do aperto de mão
             const connectionsRef = roomRef.child('connections');
             connectionsRef.off();
             connectionsRef.on('child_added', snap => {
@@ -267,7 +270,6 @@
                 }
             });
 
-            // Fecha a barra lateral de forma segura após iniciar
             setTimeout(() => {
                 if(window.innerWidth < 768) {
                     const sidebar = document.getElementById('sidebar');
@@ -281,7 +283,23 @@
             const ref = db.ref(`rooms/${myId}/connections/${viewerId}`);
             
             if (localStream) {
-                localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+                localStream.getTracks().forEach(t => {
+                    const sender = pc.addTrack(t, localStream);
+                    // Otimização de parâmetros de codificação para priorizar nitidez e fluidez de movimento (High Bitrate)
+                    if (t.kind === 'video' && sender.getParameters) {
+                        try {
+                            const parameters = sender.getParameters();
+                            if (!parameters.encodings) {
+                                parameters.encodings = [{}];
+                            }
+                            // Força priorização de resolução/framerate sem degradação agressiva
+                            parameters.encodings[0].maxBitrate = 6000000; // 6 Mbps dedicado para alta qualidade visual
+                            parameters.encodings[0].networkPriority = "high";
+                            parameters.encodings[0].scaleResolutionDownBy = 1.0;
+                            sender.setParameters(parameters).catch(err => console.error(err));
+                        } catch (e) {}
+                    }
+                });
             }
 
             pc.onicecandidate = e => { 
@@ -289,7 +307,10 @@
             };
 
             try {
-                const offer = await pc.createOffer();
+                let offer = await pc.createOffer();
+                // Ajusta o SDP para forçar maior largura de banda (6000 kbps = 6 Mbps)
+                offer.sdp = setBitrate(offer.sdp, 6000);
+                
                 await pc.setLocalDescription(offer);
                 await ref.update({ offer: { type: offer.type, sdp: offer.sdp } });
 
@@ -311,7 +332,6 @@
             }
         }
 
-        // --- VIEWER ---
         db.ref('rooms').on('value', snap => {
             const list = document.getElementById('server-list');
             list.innerHTML = "";
@@ -352,7 +372,11 @@
                 const offerVal = snap.val();
                 if (offerVal && !pc.currentRemoteDescription) {
                     await pc.setRemoteDescription(new RTCSessionDescription(offerVal));
-                    const answer = await pc.createAnswer();
+                    let answer = await pc.createAnswer();
+                    
+                    // Garante que a resposta também suporte taxas elevadas
+                    answer.sdp = setBitrate(answer.sdp, 6000);
+                    
                     await pc.setLocalDescription(answer);
                     await ref.update({ answer: { type: answer.type, sdp: answer.sdp } });
                 }
