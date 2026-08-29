@@ -163,6 +163,8 @@
 
         let selectedBitrateKbps = 6000;
         let selectedCodec = 'VP8';
+        let activePeerConnections = []; // Armazena instâncias para limpeza
+        let activeFirebaseRefs = [];  // Armazena referências para limpeza
 
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
@@ -198,6 +200,16 @@
 
         window.addEventListener('click', () => {
             document.querySelectorAll('.custom-menu, .audio-dropdown').forEach(m => m.classList.remove('show'));
+        });
+
+        // Limpeza automática ao fechar ou atualizar a aba (Evita lixo de memória e conexões fantasmas)
+        window.addEventListener('beforeunload', () => {
+            activePeerConnections.forEach(pc => {
+                try { pc.close(); } catch(e) {}
+            });
+            activeFirebaseRefs.forEach(ref => {
+                try { ref.remove(); } catch(e) {}
+            });
         });
 
         function handleDownload() {
@@ -340,6 +352,7 @@
             const roomRef = db.ref('rooms/' + myId);
             roomRef.set({ name: name, id: myId });
             roomRef.onDisconnect().remove();
+            activeFirebaseRefs.push(roomRef);
 
             const connectionsRef = roomRef.child('connections');
             connectionsRef.off();
@@ -359,6 +372,7 @@
 
         async function setupHostPeer(viewerId) {
             const pc = new RTCPeerConnection(rtcConfig);
+            activePeerConnections.push(pc);
             const ref = db.ref(`rooms/${myId}/connections/${viewerId}`);
             
             if (localStream) {
@@ -427,7 +441,13 @@
         async function connect(hostId) {
             const viewerId = Math.random().toString(36).substring(7);
             const pc = new RTCPeerConnection(rtcConfig);
+            activePeerConnections.push(pc);
+            
             const ref = db.ref(`rooms/${hostId}/connections/${viewerId}`);
+            
+            // ADICIONADO: Garante a faxina automática no Firebase caso o visualizador caia ou feche a aba
+            ref.onDisconnect().remove();
+            activeFirebaseRefs.push(ref);
 
             pc.ontrack = e => {
                 const vid = document.getElementById('remote-video');
