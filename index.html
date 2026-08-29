@@ -65,6 +65,9 @@
         #btn-stop { background: #ff4d4d !important; color: white; display: none; }
 
         #click-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 50; text-align: center; }
+        
+        /* Estilo para o Indicador de Bitrate Real na Topbar */
+        .stats-badge { background: rgba(0, 212, 255, 0.1); border: 1px solid rgba(0, 212, 255, 0.3); padding: 4px 10px; border-radius: 6px; font-size: 0.75em; color: var(--primary); font-family: monospace; display: none; align-items: center; gap: 5px; }
     </style>
 </head>
 <body>
@@ -79,8 +82,7 @@
             <h3 style="margin:0; color:var(--primary);">🕹️ BACKSEAT P2P</h3>
             <input type="text" id="host-name" placeholder="Nick da Sala">
             
-            <!-- Menu Expansivo de Taxa de Bits -->
-            <label style="font-size:0.75em; color:#888; margin-top:2px;">TAXA DE BITS / QUALIDADE</label>
+            <label style="font-size:0.75em; color:#888; margin-top:2px;">TAXA DE BITS ALVO / QUALIDADE</label>
             <div class="custom-dropdown-container">
                 <div class="custom-btn-select" onclick="toggleMenu(event, 'bitrate-menu')">
                     <span id="selected-bitrate-label">⚡ 6 Mbps (1080p 60FPS)</span>
@@ -95,7 +97,6 @@
                 </div>
             </div>
 
-            <!-- Menu Expansivo de Codec -->
             <label style="font-size:0.75em; color:#888; margin-top:2px;">CODEC DE VÍDEO</label>
             <div class="custom-dropdown-container">
                 <div class="custom-btn-select" onclick="toggleMenu(event, 'codec-menu')">
@@ -119,7 +120,14 @@
     <div class="viewer-container">
         <div class="top-bar">
             <button class="btn-toggle" id="btn-toggle-org" onclick="toggleSidebar()" title="Menu">☰</button>
-            <div id="status-text" style="font-size: 0.8em; color: #888;">Online</div>
+            
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <div id="status-text" style="font-size: 0.8em; color: #888;">Online</div>
+                <div id="realtime-stats" class="stats-badge">
+                    <span>📡 Upload:</span> <span id="bitrate-value">0 kbps</span>
+                </div>
+            </div>
+
             <div class="top-bar-actions">
                 <button class="top-btn" onclick="handleDownload()" title="Baixar / Download">📥</button>
                 <div class="audio-wrapper">
@@ -163,8 +171,7 @@
 
         let selectedBitrateKbps = 6000;
         let selectedCodec = 'VP8';
-        let activePeerConnections = []; // Armazena instâncias para limpeza
-        let activeFirebaseRefs = [];  // Armazena referências para limpeza
+        let statsInterval = null;
 
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
@@ -202,16 +209,6 @@
             document.querySelectorAll('.custom-menu, .audio-dropdown').forEach(m => m.classList.remove('show'));
         });
 
-        // Limpeza automática ao fechar ou atualizar a aba (Evita lixo de memória e conexões fantasmas)
-        window.addEventListener('beforeunload', () => {
-            activePeerConnections.forEach(pc => {
-                try { pc.close(); } catch(e) {}
-            });
-            activeFirebaseRefs.forEach(ref => {
-                try { ref.remove(); } catch(e) {}
-            });
-        });
-
         function handleDownload() {
             window.open('https://github.com/wanderlycan/screencasting/releases/download/v1.0.0/backseat-p2p.1.0.0.exe', '_blank');
         }
@@ -235,6 +232,56 @@
                 }
                 pulse();
             } catch(e) {}
+        }
+
+        // Função para monitorar a taxa de bits real usando getStats()
+        function startStatsMonitor(pc, isHost) {
+            const statsBadge = document.getElementById('realtime-stats');
+            const bitrateVal = document.getElementById('bitrate-value');
+            statsBadge.style.display = 'flex';
+            if(isHost) {
+                statsBadge.querySelector('span').innerText = '📡 Upload Real:';
+            } else {
+                statsBadge.querySelector('span').innerText = '📥 Download Real:';
+            }
+
+            let lastBytes = 0;
+            let lastTimestamp = 0;
+
+            if (statsInterval) clearInterval(statsInterval);
+
+            statsInterval = setInterval(async () => {
+                try {
+                    const stats = await pc.getStats();
+                    let bytes = 0;
+                    let timestamp = 0;
+
+                    stats.forEach(report => {
+                        // Para o Host olhamos os bytes enviados de vídeo, para o Viewer olhamos os recebidos
+                        if (isHost && report.type === 'outbound-rtp' && report.kind === 'video') {
+                            bytes = report.bytesSent;
+                            timestamp = report.timestamp;
+                        } else if (!isHost && report.type === 'inbound-rtp' && report.kind === 'video') {
+                            bytes = report.bytesReceived;
+                            timestamp = report.timestamp;
+                        }
+                    });
+
+                    if (lastTimestamp && timestamp > lastTimestamp) {
+                        const bitrateKbps = Math.round(((bytes - lastBytes) * 8) / (timestamp - lastTimestamp));
+                        if (bitrateKbps >= 1000) {
+                            bitrateVal.innerText = (bitrateKbps / 1000).toFixed(2) + ' Mbps';
+                        } else {
+                            bitrateVal.innerText = bitrateKbps + ' kbps';
+                        }
+                    }
+
+                    lastBytes = bytes;
+                    lastTimestamp = timestamp;
+                } catch (e) {
+                    console.error("Erro ao ler estatísticas de rede:", e);
+                }
+            }, 1000);
         }
 
         function optimizeSDP(sdp, bitrateKbps, codecPreference) {
@@ -352,7 +399,6 @@
             const roomRef = db.ref('rooms/' + myId);
             roomRef.set({ name: name, id: myId });
             roomRef.onDisconnect().remove();
-            activeFirebaseRefs.push(roomRef);
 
             const connectionsRef = roomRef.child('connections');
             connectionsRef.off();
@@ -372,7 +418,6 @@
 
         async function setupHostPeer(viewerId) {
             const pc = new RTCPeerConnection(rtcConfig);
-            activePeerConnections.push(pc);
             const ref = db.ref(`rooms/${myId}/connections/${viewerId}`);
             
             if (localStream) {
@@ -394,6 +439,9 @@
             pc.onicecandidate = e => { 
                 if (e.candidate) ref.child('hostCandidates').push(e.candidate.toJSON()); 
             };
+
+            // Iniciar o monitor de estatísticas reais para o Host
+            startStatsMonitor(pc, true);
 
             try {
                 let offer = await pc.createOffer();
@@ -441,13 +489,7 @@
         async function connect(hostId) {
             const viewerId = Math.random().toString(36).substring(7);
             const pc = new RTCPeerConnection(rtcConfig);
-            activePeerConnections.push(pc);
-            
             const ref = db.ref(`rooms/${hostId}/connections/${viewerId}`);
-            
-            // ADICIONADO: Garante a faxina automática no Firebase caso o visualizador caia ou feche a aba
-            ref.onDisconnect().remove();
-            activeFirebaseRefs.push(ref);
 
             pc.ontrack = e => {
                 const vid = document.getElementById('remote-video');
@@ -459,6 +501,9 @@
             pc.onicecandidate = e => { 
                 if (e.candidate) ref.child('viewerCandidates').push(e.candidate.toJSON()); 
             };
+
+            // Iniciar o monitor de estatísticas reais para o Viewer
+            startStatsMonitor(pc, false);
 
             await ref.set({ request: true });
 
