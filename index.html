@@ -65,9 +65,6 @@
         #btn-stop { background: #ff4d4d !important; color: white; display: none; }
 
         #click-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 50; text-align: center; }
-        
-        /* Estilo para o Indicador de Bitrate Real na Topbar */
-        .stats-badge { background: rgba(0, 212, 255, 0.1); border: 1px solid rgba(0, 212, 255, 0.3); padding: 4px 10px; border-radius: 6px; font-size: 0.75em; color: var(--primary); font-family: monospace; display: none; align-items: center; gap: 5px; }
     </style>
 </head>
 <body>
@@ -82,7 +79,8 @@
             <h3 style="margin:0; color:var(--primary);">🕹️ BACKSEAT P2P</h3>
             <input type="text" id="host-name" placeholder="Nick da Sala">
             
-            <label style="font-size:0.75em; color:#888; margin-top:2px;">TAXA DE BITS ALVO / QUALIDADE</label>
+            <!-- Menu Expansivo de Taxa de Bits -->
+            <label style="font-size:0.75em; color:#888; margin-top:2px;">TAXA DE BITS / QUALIDADE</label>
             <div class="custom-dropdown-container">
                 <div class="custom-btn-select" onclick="toggleMenu(event, 'bitrate-menu')">
                     <span id="selected-bitrate-label">⚡ 6 Mbps (1080p 60FPS)</span>
@@ -97,6 +95,7 @@
                 </div>
             </div>
 
+            <!-- Menu Expansivo de Codec -->
             <label style="font-size:0.75em; color:#888; margin-top:2px;">CODEC DE VÍDEO</label>
             <div class="custom-dropdown-container">
                 <div class="custom-btn-select" onclick="toggleMenu(event, 'codec-menu')">
@@ -120,14 +119,12 @@
     <div class="viewer-container">
         <div class="top-bar">
             <button class="btn-toggle" id="btn-toggle-org" onclick="toggleSidebar()" title="Menu">☰</button>
-            
             <div style="display: flex; align-items: center; gap: 15px;">
                 <div id="status-text" style="font-size: 0.8em; color: #888;">Online</div>
-                <div id="realtime-stats" class="stats-badge">
-                    <span>📡 Upload:</span> <span id="bitrate-value">0 kbps</span>
+                <div id="viewer-badge" style="font-size: 0.8em; color: var(--primary); background: rgba(0, 212, 255, 0.1); padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(0, 212, 255, 0.2);">
+                    👁️ <span id="viewer-count">0</span> espectadores
                 </div>
             </div>
-
             <div class="top-bar-actions">
                 <button class="top-btn" onclick="handleDownload()" title="Baixar / Download">📥</button>
                 <div class="audio-wrapper">
@@ -171,7 +168,6 @@
 
         let selectedBitrateKbps = 6000;
         let selectedCodec = 'VP8';
-        let statsInterval = null;
 
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
@@ -232,56 +228,6 @@
                 }
                 pulse();
             } catch(e) {}
-        }
-
-        // Função para monitorar a taxa de bits real usando getStats()
-        function startStatsMonitor(pc, isHost) {
-            const statsBadge = document.getElementById('realtime-stats');
-            const bitrateVal = document.getElementById('bitrate-value');
-            statsBadge.style.display = 'flex';
-            if(isHost) {
-                statsBadge.querySelector('span').innerText = '📡 Upload Real:';
-            } else {
-                statsBadge.querySelector('span').innerText = '📥 Download Real:';
-            }
-
-            let lastBytes = 0;
-            let lastTimestamp = 0;
-
-            if (statsInterval) clearInterval(statsInterval);
-
-            statsInterval = setInterval(async () => {
-                try {
-                    const stats = await pc.getStats();
-                    let bytes = 0;
-                    let timestamp = 0;
-
-                    stats.forEach(report => {
-                        // Para o Host olhamos os bytes enviados de vídeo, para o Viewer olhamos os recebidos
-                        if (isHost && report.type === 'outbound-rtp' && report.kind === 'video') {
-                            bytes = report.bytesSent;
-                            timestamp = report.timestamp;
-                        } else if (!isHost && report.type === 'inbound-rtp' && report.kind === 'video') {
-                            bytes = report.bytesReceived;
-                            timestamp = report.timestamp;
-                        }
-                    });
-
-                    if (lastTimestamp && timestamp > lastTimestamp) {
-                        const bitrateKbps = Math.round(((bytes - lastBytes) * 8) / (timestamp - lastTimestamp));
-                        if (bitrateKbps >= 1000) {
-                            bitrateVal.innerText = (bitrateKbps / 1000).toFixed(2) + ' Mbps';
-                        } else {
-                            bitrateVal.innerText = bitrateKbps + ' kbps';
-                        }
-                    }
-
-                    lastBytes = bytes;
-                    lastTimestamp = timestamp;
-                } catch (e) {
-                    console.error("Erro ao ler estatísticas de rede:", e);
-                }
-            }, 1000);
         }
 
         function optimizeSDP(sdp, bitrateKbps, codecPreference) {
@@ -402,6 +348,15 @@
 
             const connectionsRef = roomRef.child('connections');
             connectionsRef.off();
+            
+            // Monitora conexões e atualiza o contador local do host e joga a contagem no banco para os viewers verem
+            connectionsRef.on('value', snap => {
+                const conns = snap.val();
+                const count = conns ? Object.keys(conns).length : 0;
+                document.getElementById('viewer-count').innerText = count;
+                roomRef.update({ viewerCount: count }); // Sincroniza com quem está assistindo
+            });
+
             connectionsRef.on('child_added', snap => {
                 if (snap.val() && snap.val().request) {
                     setupHostPeer(snap.key);
@@ -439,9 +394,6 @@
             pc.onicecandidate = e => { 
                 if (e.candidate) ref.child('hostCandidates').push(e.candidate.toJSON()); 
             };
-
-            // Iniciar o monitor de estatísticas reais para o Host
-            startStatsMonitor(pc, true);
 
             try {
                 let offer = await pc.createOffer();
@@ -491,6 +443,12 @@
             const pc = new RTCPeerConnection(rtcConfig);
             const ref = db.ref(`rooms/${hostId}/connections/${viewerId}`);
 
+            // Monitora em tempo real o contador da sala onde o usuário entrou como "penetra/viewer"
+            db.ref(`rooms/${hostId}/viewerCount`).on('value', snap => {
+                const count = snap.val() || 0;
+                document.getElementById('viewer-count').innerText = count;
+            });
+
             pc.ontrack = e => {
                 const vid = document.getElementById('remote-video');
                 vid.srcObject = e.streams[0];
@@ -502,10 +460,8 @@
                 if (e.candidate) ref.child('viewerCandidates').push(e.candidate.toJSON()); 
             };
 
-            // Iniciar o monitor de estatísticas reais para o Viewer
-            startStatsMonitor(pc, false);
-
             await ref.set({ request: true });
+            ref.onDisconnect().remove(); // Garante que se o viewer cair, limpa do banco
 
             ref.child('offer').on('value', async snap => {
                 const offerVal = snap.val();
