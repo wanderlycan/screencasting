@@ -147,6 +147,7 @@ async function hostGame() {
                 grid.appendChild(card);
             });
         } else {
+            // Chamada atualizada com parâmetros forçados para inclusão de áudio do sistema/aba
             const stream = await navigator.mediaDevices.getDisplayMedia({
                 video: { 
                     width: { ideal: maxRes }, 
@@ -154,7 +155,14 @@ async function hostGame() {
                     frameRate: { ideal: 60, max: 60 },
                     cursor: "always"
                 },
-                audio: true
+                audio: {
+                    echoCancellation: false,
+                    noiseSuppression: false,
+                    autoGainControl: false,
+                    systemAudio: "include"
+                },
+                selfBrowserSurface: "exclude",
+                systemAudio: "include"
             });
             finalizeHost(stream, name);
         }
