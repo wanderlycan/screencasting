@@ -245,7 +245,6 @@
         let bandwidthInterval = null;
         let activeViewers = {};
         let localStream = null;
-        let activeRelayStream = null; // Armazena a stream recebida caso este viewer vire retransmissor (Túnel/Forquilha)
 
         window.onload = () => {
             if (!localStorage.getItem('gamecast_welcomed')) {
@@ -537,7 +536,13 @@
 
         function finalizeHost(stream, name) {
             localStream = stream;
-            document.getElementById('local-preview').srcObject = localStream;
+            
+            const preview = document.getElementById('floating-preview');
+            const videoElem = document.getElementById('local-preview');
+            if (preview.style.display === 'flex') {
+                videoElem.srcObject = localStream;
+            }
+
             document.getElementById('btn-start').style.display = 'none';
             document.getElementById('btn-stop').style.display = 'block';
             
@@ -545,26 +550,23 @@
             roomRef.set({ name: name, id: myId });
             roomRef.onDisconnect().remove();
 
-            // GERENCIAMENTO INTELIGENTE DE TÚNEL (FORQUILHA / CASCATA)
-            // Se o host já tiver 2 conexões diretas, direcionamos os novos viewers para retransmissores (viewers que já estão assistindo)
             roomRef.child('connections').on('child_added', snap => {
                 if (snap.val() && snap.val().request) {
-                    setupHostPeer(myId, snap.key, localStream);
+                    setupHostPeer(snap.key);
                 }
             });
         }
 
-        async function setupHostPeer(sourceNodeId, viewerId, streamToShare) {
+        async function setupHostPeer(viewerId) {
             const pc = new RTCPeerConnection(rtcConfig);
             activePeerConnections.push(pc);
             startBandwidthMonitor(activePeerConnections);
 
-            // Se for o host original usa o path dele, senão usa o nó de repasse do viewer intermediário
-            const ref = db.ref(`rooms/${sourceNodeId}/connections/${viewerId}`);
+            const ref = db.ref(`rooms/${myId}/connections/${viewerId}`);
             
-            if (streamToShare) {
-                streamToShare.getTracks().forEach(t => {
-                    const sender = pc.addTrack(t, streamToShare);
+            if (localStream) {
+                localStream.getTracks().forEach(t => {
+                    const sender = pc.addTrack(t, localStream);
                     if (t.kind === 'video' && sender.getParameters) {
                         try {
                             const parameters = sender.getParameters();
@@ -612,14 +614,19 @@
             const pc = new RTCPeerConnection(rtcConfig);
             const ref = db.ref(`rooms/${hostId}/connections/${viewerId}`);
 
+            // Monitora se a sala do host desapareceu do Firebase (transmissão encerrada)
+            db.ref('rooms/' + hostId).on('value', snap => {
+                if (!snap.exists()) {
+                    closeStreamWindow(hostId);
+                }
+            });
+
             pc.ontrack = e => {
                 const vid = document.getElementById(videoId);
                 if (vid) {
                     vid.srcObject = e.streams[0];
                     vid.play().catch(err => console.log("Erro ao reproduzir:", err));
                 }
-                // Ativa a forquilha: guarda a stream recebida para que este cliente possa repassá-la adiante se necessário
-                activeRelayStream = e.streams[0];
             };
 
             pc.onicecandidate = e => { if (e.candidate) ref.child('viewerCandidates').push(e.candidate.toJSON()); };
@@ -645,12 +652,16 @@
         function togglePreview() {
             const preview = document.getElementById('floating-preview');
             const btn = document.getElementById('btn-toggle-preview');
+            const videoElem = document.getElementById('local-preview');
+
             if (preview.style.display === 'none' || preview.style.display === '') {
                 preview.style.display = 'flex';
                 btn.innerText = '📺 Desligar Prévia';
+                if (localStream) videoElem.srcObject = localStream;
             } else {
                 preview.style.display = 'none';
                 btn.innerText = '📺 Ligar Prévia';
+                videoElem.srcObject = null;
             }
         }
     </script>
