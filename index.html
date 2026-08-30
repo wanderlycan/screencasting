@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Backseat P2P - Master Edition (Live Bandwidth Meter)</title>
+    <title>GameCast - Master Edition</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
     <style>
@@ -16,8 +16,9 @@
         .sidebar-header { padding: 15px; background: #1a202c; border-bottom: 2px solid var(--primary); display: flex; flex-direction: column; gap: 8px; position: relative; z-index: 10; }
         
         .server-list { flex-grow: 1; overflow-y: auto; padding: 10px; }
-        .server-item { background: var(--panel); padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #333; cursor: pointer; transition: background 0.2s; }
+        .server-item { background: var(--panel); padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #333; cursor: pointer; transition: background 0.2s; display: flex; justify-content: space-between; align-items: center; }
         .server-item:hover { background: #1c2331; }
+        .server-item button { background: var(--primary); border: none; padding: 5px 10px; border-radius: 4px; font-weight: bold; cursor: pointer; color: #000; font-size: 0.8em; }
 
         .viewer-container { flex-grow: 1; display: flex; flex-direction: column; position: relative; width: 100%; height: 100%; overflow: hidden; }
         
@@ -30,81 +31,94 @@
         .top-btn { background: none; border: none; color: #fff; font-size: 1.3em; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 8px; transition: background 0.2s; }
         .top-btn:hover { background: rgba(255, 255, 255, 0.08); }
 
-        .audio-wrapper { position: relative; display: flex; align-items: center; }
-        #audio-led { width: 8px; height: 8px; background: #333; border-radius: 50%; position: absolute; top: 6px; right: 6px; pointer-events: none; }
-        .led-active { background: var(--success) !important; box-shadow: 0 0 8px var(--success); }
-
-        .audio-dropdown { position: absolute; top: 50px; right: 0; background: #1a202c; border: 1px solid #333; padding: 12px 15px; border-radius: 10px; display: none; flex-direction: column; gap: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 3000; min-width: 180px; }
-        .audio-dropdown.show { display: flex; }
-        .audio-dropdown label { font-size: 0.75em; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; }
-        .audio-dropdown input[type="range"] { width: 100%; margin: 0; cursor: pointer; }
-
-        #source-picker { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); display: none; flex-direction: column; padding: 40px; z-index: 9999; overflow-y: auto; align-items: center; }
-        .source-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; width: 100%; max-width: 1000px; margin-top: 20px; }
-        .source-card { background: #252d3d; border-radius: 8px; padding: 10px; cursor: pointer; text-align: center; border: 2px solid transparent; transition: 0.2s; }
-        .source-card:hover { border-color: var(--primary); transform: scale(1.05); }
-        .source-card img { width: 100%; border-radius: 4px; margin-bottom: 5px; }
-        .source-card span { font-size: 11px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
         .stage { flex-grow: 1; background: #000; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        #remote-video { width: 100%; height: 100%; object-fit: contain; }
-        #local-preview { width: 100%; height: 100%; object-fit: contain; }
 
-        /* JANELA FLUTUANTE DA PRÉVIA */
-        #floating-preview {
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            width: 350px;
-            height: 220px;
+        /* MODAL DE AVISO ÚNICO */
+        #welcome-modal {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0,0,0,0.85); z-index: 9999;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .modal-content {
+            background: #151921; border: 2px solid var(--primary); padding: 25px;
+            border-radius: 12px; max-width: 420px; width: 90%; text-align: center;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.9);
+        }
+        .modal-content h3 { color: var(--primary); margin-top: 0; margin-bottom: 15px; }
+        .modal-content p { font-size: 0.95em; line-height: 1.5; color: #ccc; margin-bottom: 20px; }
+        .modal-content button {
+            background: var(--primary); color: #000; border: none; padding: 10px 20px;
+            border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1em;
+        }
+        .modal-content button:hover { opacity: 0.9; }
+
+        .floating-window {
+            position: absolute;
             background: #111;
             border: 2px solid var(--primary);
             border-radius: 8px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.8);
             z-index: 3500;
-            display: none;
+            display: flex;
+            flex-direction: column;
             overflow: hidden;
         }
 
-        .preview-header {
+        .window-header {
             background: #1a202c;
-            padding: 8px 12px;
+            padding: 6px 10px;
             cursor: move;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: bold;
             color: var(--primary);
             border-bottom: 1px solid #333;
             user-select: none;
-            height: 35px;
+            height: 32px;
+            flex-shrink: 0;
         }
 
-        .preview-header-actions {
+        .window-header-actions {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
         }
 
         .size-control-wrapper { position: relative; display: flex; align-items: center; }
         .size-dropdown { 
-            position: absolute; top: 35px; right: 0; background: #1a202c; border: 1px solid #333; 
-            padding: 12px 15px; border-radius: 10px; display: none; flex-direction: column; gap: 6px; 
-            box-shadow: 0 10px 25px rgba(0,0,0,0.7); z-index: 4000; min-width: 180px; 
+            position: absolute; top: 32px; right: 0; background: #1a202c; border: 1px solid #333; 
+            padding: 10px 12px; border-radius: 8px; display: none; flex-direction: column; gap: 4px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.7); z-index: 4000; min-width: 160px; 
         }
         .size-dropdown.show { display: flex; }
-        .size-dropdown label { font-size: 0.75em; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; display: flex; justify-content: space-between; }
+        .size-dropdown label { font-size: 0.7em; color: #aaa; text-transform: uppercase; display: flex; justify-content: space-between; }
         .size-dropdown input[type="range"] { width: 100%; margin: 0; cursor: pointer; accent-color: var(--primary); }
 
-        .preview-body {
+        .window-body {
+            flex-grow: 1;
             width: 100%;
-            height: calc(100% - 35px);
             display: flex;
             align-items: center;
             justify-content: center;
             background: #000;
             overflow: hidden;
+            position: relative;
+        }
+
+        .window-body video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        #floating-preview {
+            top: 80px;
+            right: 20px;
+            width: 350px;
+            height: 220px;
+            display: none;
         }
 
         .preview-control-bar {
@@ -140,49 +154,48 @@
         .btn-host { background: var(--primary); color: #000; padding: 10px; border-radius: 4px; border: none; font-weight: bold; cursor: pointer; width: 100%; transition: opacity 0.2s; font-size: 0.9em; position: relative; z-index: 1; }
         .btn-host:hover { opacity: 0.9; }
         #btn-stop { background: #ff4d4d !important; color: white; display: none; }
-
-        #click-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 50; text-align: center; }
     </style>
 </head>
 <body>
-    <div id="source-picker">
-        <h2 style="color:var(--primary);">📺 O QUE VOCÊ QUER TRANSMITIR?</h2>
-        <div class="source-grid" id="source-grid"></div>
-        <button onclick="document.getElementById('source-picker').style.display='none'" style="margin-top:20px; background:#444; color:#fff; padding:10px 20px; border:none; border-radius:5px; cursor:pointer;">Cancelar</button>
+    <!-- AVISO DA PRIMEIRA VEZ -->
+    <div id="welcome-modal" style="display:none;">
+        <div class="modal-content">
+            <h3>🎮 Bem-vindo ao GameCast!</h3>
+            <p>Economize desempenho ligando a prévia apenas se quiser. Assista a várias lives simultaneamente em janelas independentes, arraste para onde preferir e redimensione livremente!</p>
+            <button onclick="closeWelcomeModal()">Começar a Usar</button>
+        </div>
     </div>
 
-    <!-- JANELA FLUTUANTE DA PRÉVIA -->
-    <div id="floating-preview">
-        <div class="preview-header" id="preview-header">
-            <span>📺 Prévia</span>
-            <div class="preview-header-actions">
+    <!-- JANELA FLUTUANTE DA PRÉVIA LOCAL -->
+    <div id="floating-preview" class="floating-window">
+        <div class="window-header" id="preview-header">
+            <span>📺 Prévia Local</span>
+            <div class="window-header-actions">
                 <div class="size-control-wrapper">
-                    <button class="top-btn" onclick="toggleSizeMenu(event)" title="Ajustar Tamanho (1% - 100%)" style="width: 28px; height: 28px; font-size: 0.9em;">📏</button>
-                    <div class="size-dropdown" id="size-dropdown" onclick="event.stopPropagation()">
-                        <label>Tamanho: <span id="size-val-label">30%</span></label>
-                        <input type="range" id="preview-size-range" min="1" max="100" value="30" oninput="changePreviewSizeSlider(this.value)">
+                    <button class="top-btn" onclick="toggleSizeMenu(event, 'preview-size-dropdown')" style="width: 24px; height: 24px; font-size: 0.8em;">📏</button>
+                    <div class="size-dropdown" id="preview-size-dropdown" onclick="event.stopPropagation()">
+                        <label>Tamanho: <span id="preview-size-val">30%</span></label>
+                        <input type="range" id="preview-range-input" min="10" max="100" value="30" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">
                     </div>
                 </div>
-                <span onclick="togglePreview()" style="cursor:pointer; padding: 0 5px; font-size: 1.1em;">✕</span>
+                <span onclick="togglePreview()" style="cursor:pointer; padding: 0 4px;">✕</span>
             </div>
         </div>
-        <div class="preview-body">
+        <div class="window-body">
             <video id="local-preview" autoplay playsinline muted></video>
         </div>
     </div>
 
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <h3 style="margin:0; color:var(--primary);">🕹️ BACKSEAT P2P</h3>
+            <h3 style="margin:0; color:var(--primary);">GameCast 🎮💻</h3>
             <input type="text" id="host-name" placeholder="Nick da Sala">
             
-            <!-- MEDIDOR DE BANDA EM TEMPO REAL -->
             <div style="background: #11161d; border: 1px solid #333; padding: 10px; border-radius: 6px; margin-top: 4px;">
                 <label style="font-size:0.7em; color:#888; display: block; margin-bottom: 2px;">USO DE BANDA (UPLOAD AO VIVO)</label>
                 <div id="bandwidth-meter" style="font-size: 0.9em; color: var(--success); font-weight: bold;">0.00 Mbps (Inativo)</div>
             </div>
 
-            <!-- CONTROLE DE LIGAR/DESLIGAR A PRÉVIA -->
             <label style="font-size:0.75em; color:#888; margin-top:4px;">PRÉVIA DA TRANSMISSÃO</label>
             <div class="preview-control-bar">
                 <button onclick="togglePreview()" id="btn-toggle-preview">📺 Ligar Prévia</button>
@@ -197,29 +210,17 @@
     <div class="viewer-container">
         <div class="top-bar">
             <button class="btn-toggle" id="btn-toggle-org" onclick="toggleSidebar()" title="Menu">☰</button>
-            <div id="status-text" style="font-size: 0.8em; color: #888;">Online</div>
+            <div id="status-text" style="font-size: 0.8em; color: #888;">Online (GameCast Master)</div>
             <div class="top-bar-actions">
                 <button class="top-btn" onclick="handleDownload()" title="Baixar / Download">📥</button>
-                <div class="audio-wrapper">
-                    <button class="top-btn" onclick="toggleAudioMenu(event)" title="Configurações de Áudio">
-                        🔊
-                        <div id="audio-led"></div>
-                    </button>
-                    <div class="audio-dropdown" id="audio-dropdown" onclick="event.stopPropagation()">
-                        <label>Volume do Áudio</label>
-                        <input type="range" min="0" max="1" step="0.1" value="1" oninput="document.getElementById('remote-video').volume = this.value">
-                    </div>
-                </div>
                 <button class="top-btn" onclick="document.getElementById('main-stage').requestFullscreen()" title="Tela Cheia">⛶</button>
             </div>
         </div>
 
         <div class="stage" id="main-stage">
-            <div id="click-overlay" onclick="unmuteVideo()">
-                <div style="font-size: 3em; margin-bottom: 15px;">🎮</div>
-                <button style="background: var(--primary); color: #000; padding: 15px 30px; font-size: 1.2em; border-radius:8px; border:none; font-weight:bold; cursor:pointer;">ENTRAR NA PARTIDA</button>
+            <div style="color: #444; text-align: center; font-size: 0.9em; pointer-events: none;">
+                Selecione uma sala ao lado para assistir em multitelas perfeitas! 🎮
             </div>
-            <video id="remote-video" autoplay playsinline></video>
         </div>
     </div>
 
@@ -242,39 +243,170 @@
         let selectedCodec = 'VP9';
         let activePeerConnections = [];
         let bandwidthInterval = null;
+        let activeViewers = {};
 
         window.onload = () => {
-            initDraggable();
+            if (!localStorage.getItem('gamecast_welcomed')) {
+                document.getElementById('welcome-modal').style.display = 'flex';
+            }
+
+            initDraggableWindow('floating-preview', 'preview-header');
+            
+            const previewRange = document.getElementById('preview-range-input');
+            previewRange.addEventListener('input', (e) => {
+                changeWindowSize('floating-preview', e.target.value, 'preview-size-val');
+            });
         };
+
+        function closeWelcomeModal() {
+            localStorage.setItem('gamecast_welcomed', 'true');
+            document.getElementById('welcome-modal').style.display = 'none';
+        }
 
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             sidebar.classList.toggle('collapsed');
         }
 
-        function toggleSizeMenu(e) {
+        function toggleSizeMenu(e, dropdownId) {
             e.stopPropagation();
-            document.querySelectorAll('.audio-dropdown').forEach(m => m.classList.remove('show'));
-            const dropdown = document.getElementById('size-dropdown');
-            dropdown.classList.toggle('show');
-        }
-
-        function toggleAudioMenu(e) {
-            e.stopPropagation();
-            document.querySelectorAll('.size-dropdown').forEach(m => m.classList.remove('show'));
-            const dropdown = document.getElementById('audio-dropdown');
-            dropdown.classList.toggle('show');
+            document.querySelectorAll('.size-dropdown').forEach(m => {
+                if(m.id !== dropdownId) m.classList.remove('show');
+            });
+            document.getElementById(dropdownId).classList.toggle('show');
         }
 
         window.addEventListener('click', () => {
-            document.querySelectorAll('.audio-dropdown, .size-dropdown').forEach(m => m.classList.remove('show'));
+            document.querySelectorAll('.size-dropdown').forEach(m => m.classList.remove('show'));
         });
 
         function handleDownload() {
             window.open('https://github.com/wanderlycan/screencasting/releases/download/v1.0.0/backseat-p2p.1.0.0.exe', '_blank');
         }
 
-        // --- SISTEMA DE MEDIÇÃO DE BANDA EM TEMPO REAL ---
+        function openStreamWindow(hostId, hostName) {
+            if (activeViewers[hostId]) {
+                alert("Você já está assistindo a esta transmissão!");
+                return;
+            }
+
+            const winId = 'stream-win-' + hostId;
+            const headerId = 'header-' + hostId;
+            const dropdownId = 'dropdown-' + hostId;
+            const labelId = 'label-' + hostId;
+            const videoId = 'video-' + hostId;
+            const rangeId = 'range-' + hostId;
+
+            const stage = document.getElementById('main-stage');
+            const winDiv = document.createElement('div');
+            winDiv.className = 'floating-window';
+            winDiv.id = winId;
+            
+            const offset = Object.keys(activeViewers).length * 30;
+            const initialWidth = 350;
+            const initialHeight = 220;
+            
+            winDiv.style.top = (100 + offset) + 'px';
+            winDiv.style.left = (150 + offset) + 'px';
+            winDiv.style.width = initialWidth + 'px';
+            winDiv.style.height = initialHeight + 'px';
+
+            winDiv.innerHTML = `
+                <div class="window-header" id="${headerId}">
+                    <span>🔴 ${hostName}</span>
+                    <div class="window-header-actions">
+                        <div class="size-control-wrapper">
+                            <button class="top-btn" onclick="toggleSizeMenu(event, '${dropdownId}')" style="width: 24px; height: 24px; font-size: 0.8em;">📏</button>
+                            <div class="size-dropdown" id="${dropdownId}" onclick="event.stopPropagation()">
+                                <label>Tamanho: <span id="${labelId}">30%</span></label>
+                                <input type="range" id="${rangeId}" min="10" max="100" value="30" onclick="event.stopPropagation()" onmousedown="event.stopPropagation()">
+                            </div>
+                        </div>
+                        <span onclick="closeStreamWindow('${hostId}')" style="cursor:pointer; padding: 0 4px;">✕</span>
+                    </div>
+                </div>
+                <div class="window-body">
+                    <video id="${videoId}" autoplay playsinline controls></video>
+                </div>
+            `;
+            stage.appendChild(winDiv);
+            initDraggableWindow(winId, headerId);
+
+            const rangeInput = document.getElementById(rangeId);
+            rangeInput.addEventListener('input', (e) => {
+                changeWindowSize(winId, e.target.value, labelId);
+            });
+
+            connectToStream(hostId, videoId);
+            activeViewers[hostId] = true;
+        }
+
+        function closeStreamWindow(hostId) {
+            const win = document.getElementById('stream-win-' + hostId);
+            if (win) win.remove();
+            delete activeViewers[hostId];
+        }
+
+        function changeWindowSize(winId, percent, labelId) {
+            if (labelId) {
+                const lbl = document.getElementById(labelId);
+                if (lbl) lbl.innerText = percent + '%';
+            }
+            const win = document.getElementById(winId);
+            if (!win) return;
+            
+            const screenW = window.innerWidth;
+            const screenH = window.innerHeight;
+            
+            const oldWidth = win.offsetWidth;
+            const oldLeft = win.offsetLeft;
+            
+            const newW = Math.max(200, (screenW * percent) / 100);
+            const newH = Math.max(120, (screenH * percent) / 100);
+            
+            const widthDiff = newW - oldWidth;
+            
+            win.style.width = newW + 'px';
+            win.style.height = newH + 'px';
+            win.style.left = (oldLeft - widthDiff) + 'px';
+        }
+
+        function initDraggableWindow(winId, headerId) {
+            const win = document.getElementById(winId);
+            const header = document.getElementById(headerId);
+            let isDragging = false;
+            let startX, startY, initialX, initialY;
+
+            header.addEventListener('mousedown', dragStart);
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', dragEnd);
+
+            header.addEventListener('touchstart', dragStart, {passive: true});
+            document.addEventListener('touchmove', drag, {passive: true});
+            document.addEventListener('touchend', dragEnd);
+
+            function dragStart(e) {
+                if (e.target.closest('.size-dropdown') || e.target.closest('button') || e.target.tagName === 'INPUT' || (e.target.tagName === 'SPAN' && e.target.innerText === '✕')) return;
+                isDragging = true;
+                startX = e.clientX || e.touches[0].clientX;
+                startY = e.clientY || e.touches[0].clientY;
+                initialX = win.offsetLeft;
+                initialY = win.offsetTop;
+            }
+
+            function drag(e) {
+                if (!isDragging) return;
+                let currentX = e.clientX || e.touches[0].clientX;
+                let currentY = e.clientY || e.touches[0].clientY;
+                win.style.left = (initialX + (currentX - startX)) + 'px';
+                win.style.top = (initialY + (currentY - startY)) + 'px';
+            }
+
+            function dragEnd() {
+                isDragging = false;
+            }
+        }
+
         async function runSmartOptimization() {
             try {
                 if (window.RTCRtpSender && RTCRtpSender.getCapabilities) {
@@ -284,9 +416,7 @@
                     else if (codecs.some(c => c.includes('VP9'))) selectedCodec = 'VP9';
                     else selectedCodec = 'VP8';
                 }
-            } catch (e) {
-                selectedCodec = 'VP9';
-            }
+            } catch (e) { selectedCodec = 'VP9'; }
 
             try {
                 const startTime = performance.now();
@@ -297,9 +427,7 @@
                 if (durationSeconds < 0.3) selectedBitrateKbps = 15000;
                 else if (durationSeconds < 0.7) selectedBitrateKbps = 6000;
                 else selectedBitrateKbps = 3000;
-            } catch (e) {
-                selectedBitrateKbps = 5000;
-            }
+            } catch (e) { selectedBitrateKbps = 5000; }
         }
 
         function startBandwidthMonitor(pcList) {
@@ -334,27 +462,6 @@
                 lastBytes = totalBytesSent;
                 lastTime = now;
             }, 1000);
-        }
-
-        let audioCtx;
-        function startLED(stream) {
-            try {
-                if (!stream || stream.getAudioTracks().length === 0) return;
-                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const analyser = audioCtx.createAnalyser();
-                const source = audioCtx.createMediaStreamSource(stream);
-                source.connect(analyser);
-                analyser.fftSize = 32;
-                const data = new Uint8Array(analyser.frequencyBinCount);
-                const led = document.getElementById('audio-led');
-                function pulse() {
-                    analyser.getByteFrequencyData(data);
-                    let vol = data.reduce((a,b) => a+b) / data.length;
-                    if (vol > 10) led.classList.add('led-active'); else led.classList.remove('led-active');
-                    requestAnimationFrame(pulse);
-                }
-                pulse();
-            } catch(e) {}
         }
 
         function optimizeSDP(sdp, bitrateKbps, codecPreference) {
@@ -401,66 +508,29 @@
                     }
                 }
             }
-
             return lines.join('\r\n');
         }
 
-        let localStream;
         async function hostGame() {
             const name = document.getElementById('host-name').value || "Host";
             await runSmartOptimization();
 
             try {
                 let maxRes = selectedBitrateKbps >= 12000 ? 3840 : (selectedBitrateKbps >= 6000 ? 1920 : 1280);
-                if (typeof require !== 'undefined') {
-                    const { ipcRenderer } = require('electron');
-                    const sources = await ipcRenderer.invoke('get-sources');
-
-                    const picker = document.getElementById('source-picker');
-                    const grid = document.getElementById('source-grid');
-                    grid.innerHTML = '';
-                    picker.style.display = 'flex';
-
-                    sources.forEach(source => {
-                        if (source.name.includes("Backseat P2P")) return;
-                        const card = document.createElement('div');
-                        card.className = 'source-card';
-                        card.innerHTML = `<img src="${source.thumbnail}"><span>${source.name}</span>`;
-                        card.onclick = () => startCapture(source.id, name, maxRes);
-                        grid.appendChild(card);
-                    });
-                } else {
-                    const stream = await navigator.mediaDevices.getDisplayMedia({
-                        video: { 
-                            width: { ideal: maxRes }, 
-                            height: { ideal: maxRes === 3840 ? 2160 : (maxRes === 1920 ? 1080 : 720) }, 
-                            frameRate: { ideal: 60, max: 60 },
-                            cursor: "always"
-                        },
-                        audio: true
-                    });
-                    finalizeHost(stream, name);
-                }
-            } catch (e) { alert("Erro ao abrir: " + e.message); }
-        }
-
-        async function startCapture(sourceId, name, maxRes) {
-            try {
-                document.getElementById('source-picker').style.display = 'none';
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    audio: { mandatory: { chromeMediaSource: 'desktop' } },
-                    video: {
-                        mandatory: {
-                            chromeMediaSource: 'desktop',
-                            chromeMediaSourceId: sourceId,
-                            minWidth: 1280, maxWidth: maxRes, 
-                            minHeight: 720, maxHeight: maxRes === 3840 ? 2160 : (maxRes === 1920 ? 1080 : 720),
-                            maxFrameRate: 60
-                        }
-                    }
+                
+                const stream = await navigator.mediaDevices.getDisplayMedia({
+                    video: { 
+                        width: { ideal: maxRes }, 
+                        height: { ideal: maxRes === 3840 ? 2160 : 1080 }, 
+                        frameRate: { ideal: 60, max: 60 },
+                        cursor: "always"
+                    },
+                    audio: true
                 });
                 finalizeHost(stream, name);
-            } catch (e) { alert("Erro ao capturar: " + e.message); }
+            } catch (e) { 
+                console.log("Captura cancelada ou erro: " + e.message); 
+            }
         }
 
         function finalizeHost(stream, name) {
@@ -468,26 +538,16 @@
             document.getElementById('local-preview').srcObject = localStream;
             document.getElementById('btn-start').style.display = 'none';
             document.getElementById('btn-stop').style.display = 'block';
-            startLED(localStream);
             
             const roomRef = db.ref('rooms/' + myId);
             roomRef.set({ name: name, id: myId });
             roomRef.onDisconnect().remove();
 
-            const connectionsRef = roomRef.child('connections');
-            connectionsRef.off();
-            connectionsRef.on('child_added', snap => {
+            roomRef.child('connections').on('child_added', snap => {
                 if (snap.val() && snap.val().request) {
                     setupHostPeer(snap.key);
                 }
             });
-
-            setTimeout(() => {
-                if(window.innerWidth < 768) {
-                    const sidebar = document.getElementById('sidebar');
-                    if(!sidebar.classList.contains('collapsed')) toggleSidebar();
-                }
-            }, 200);
         }
 
         async function setupHostPeer(viewerId) {
@@ -505,41 +565,27 @@
                             const parameters = sender.getParameters();
                             if (!parameters.encodings) parameters.encodings = [{}];
                             parameters.encodings[0].maxBitrate = selectedBitrateKbps * 1000;
-                            parameters.encodings[0].networkPriority = "high";
-                            parameters.encodings[0].scaleResolutionDownBy = 1.0;
                             sender.setParameters(parameters).catch(err => {});
                         } catch (e) {}
                     }
                 });
             }
 
-            pc.onicecandidate = e => { 
-                if (e.candidate) ref.child('hostCandidates').push(e.candidate.toJSON()); 
-            };
+            pc.onicecandidate = e => { if (e.candidate) ref.child('hostCandidates').push(e.candidate.toJSON()); };
 
-            try {
-                let offer = await pc.createOffer();
-                offer.sdp = optimizeSDP(offer.sdp, selectedBitrateKbps, selectedCodec);
-                
-                await pc.setLocalDescription(offer);
-                await ref.update({ offer: { type: offer.type, sdp: offer.sdp } });
+            let offer = await pc.createOffer();
+            offer.sdp = optimizeSDP(offer.sdp, selectedBitrateKbps, selectedCodec);
+            await pc.setLocalDescription(offer);
+            await ref.update({ offer: { type: offer.type, sdp: offer.sdp } });
 
-                ref.child('answer').on('value', async snap => {
-                    const answerVal = snap.val();
-                    if (answerVal && !pc.currentRemoteDescription) {
-                        await pc.setRemoteDescription(new RTCSessionDescription(answerVal));
-                    }
-                });
+            ref.child('answer').on('value', async snap => {
+                const answerVal = snap.val();
+                if (answerVal && !pc.currentRemoteDescription) await pc.setRemoteDescription(new RTCSessionDescription(answerVal));
+            });
 
-                ref.child('viewerCandidates').on('child_added', snap => {
-                    const candidateVal = snap.val();
-                    if (candidateVal) {
-                        pc.addIceCandidate(new RTCIceCandidate(candidateVal)).catch(e => {});
-                    }
-                });
-            } catch(err) {
-                console.error("Erro no setupHostPeer:", err);
-            }
+            ref.child('viewerCandidates').on('child_added', snap => {
+                if (snap.val()) pc.addIceCandidate(new RTCIceCandidate(snap.val())).catch(e => {});
+            });
         }
 
         db.ref('rooms').on('value', snap => {
@@ -551,30 +597,25 @@
                 if (id === myId) continue;
                 const div = document.createElement('div');
                 div.className = "server-item";
-                div.innerText = rooms[id].name;
-                div.onclick = () => { 
-                    connect(id); 
-                    if(window.innerWidth < 768) toggleSidebar(); 
-                };
+                div.innerHTML = `<span>${rooms[id].name}</span> <button onclick="openStreamWindow('${id}', '${rooms[id].name}')">Assistir</button>`;
                 list.appendChild(div);
             }
         });
 
-        async function connect(hostId) {
+        async function connectToStream(hostId, videoId) {
             const viewerId = Math.random().toString(36).substring(7);
             const pc = new RTCPeerConnection(rtcConfig);
             const ref = db.ref(`rooms/${hostId}/connections/${viewerId}`);
 
             pc.ontrack = e => {
-                const vid = document.getElementById('remote-video');
-                vid.srcObject = e.streams[0];
-                startLED(e.streams[0]);
-                vid.play().catch(() => document.getElementById('click-overlay').style.display = 'flex');
+                const vid = document.getElementById(videoId);
+                if (vid) {
+                    vid.srcObject = e.streams[0];
+                    vid.play().catch(err => console.log("Erro ao reproduzir:", err));
+                }
             };
 
-            pc.onicecandidate = e => { 
-                if (e.candidate) ref.child('viewerCandidates').push(e.candidate.toJSON()); 
-            };
+            pc.onicecandidate = e => { if (e.candidate) ref.child('viewerCandidates').push(e.candidate.toJSON()); };
 
             await ref.set({ request: true });
 
@@ -590,74 +631,19 @@
             });
 
             ref.child('hostCandidates').on('child_added', snap => {
-                const candidateVal = snap.val();
-                if (candidateVal) {
-                    pc.addIceCandidate(new RTCIceCandidate(candidateVal)).catch(e => {});
-                }
+                if (snap.val()) pc.addIceCandidate(new RTCIceCandidate(snap.val())).catch(e => {});
             });
-        }
-
-        function unmuteVideo() { 
-            if(audioCtx) audioCtx.resume(); 
-            document.getElementById('remote-video').play(); 
-            document.getElementById('click-overlay').style.display = 'none'; 
         }
 
         function togglePreview() {
             const preview = document.getElementById('floating-preview');
             const btn = document.getElementById('btn-toggle-preview');
             if (preview.style.display === 'none' || preview.style.display === '') {
-                preview.style.display = 'block';
+                preview.style.display = 'flex';
                 btn.innerText = '📺 Desligar Prévia';
             } else {
                 preview.style.display = 'none';
                 btn.innerText = '📺 Ligar Prévia';
-            }
-        }
-
-        function changePreviewSizeSlider(percent) {
-            document.getElementById('size-val-label').innerText = percent + '%';
-            const preview = document.getElementById('floating-preview');
-            const screenW = window.innerWidth;
-            const screenH = window.innerHeight;
-            
-            preview.style.width = Math.max(150, (screenW * percent) / 100) + 'px';
-            preview.style.height = Math.max(100, (screenH * percent) / 100) + 'px';
-        }
-
-        function initDraggable() {
-            const preview = document.getElementById('floating-preview');
-            const header = document.getElementById('preview-header');
-            let isDragging = false;
-            let startX, startY, initialX, initialY;
-
-            header.addEventListener('mousedown', dragStart);
-            document.addEventListener('mousemove', drag);
-            document.addEventListener('mouseup', dragEnd);
-
-            header.addEventListener('touchstart', dragStart, {passive: true});
-            document.addEventListener('touchmove', drag, {passive: true});
-            document.addEventListener('touchend', dragEnd);
-
-            function dragStart(e) {
-                if (e.target.closest('.size-dropdown') || e.target.closest('button') || (e.target.tagName === 'SPAN' && e.target.innerText === '✕')) return;
-                isDragging = true;
-                startX = e.clientX || e.touches[0].clientX;
-                startY = e.clientY || e.touches[0].clientY;
-                initialX = preview.offsetLeft;
-                initialY = preview.offsetTop;
-            }
-
-            function drag(e) {
-                if (!isDragging) return;
-                let currentX = e.clientX || e.touches[0].clientX;
-                let currentY = e.clientY || e.touches[0].clientY;
-                preview.style.left = (initialX + (currentX - startX)) + 'px';
-                preview.style.top = (initialY + (currentY - startY)) + 'px';
-            }
-
-            function dragEnd() {
-                isDragging = false;
             }
         }
     </script>
