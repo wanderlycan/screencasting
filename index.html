@@ -244,6 +244,8 @@
         let activePeerConnections = [];
         let bandwidthInterval = null;
         let activeViewers = {};
+        let localStream = null;
+        let activeRelayStream = null; // Armazena a stream recebida caso este viewer vire retransmissor (Túnel/Forquilha)
 
         window.onload = () => {
             if (!localStorage.getItem('gamecast_welcomed')) {
@@ -543,23 +545,26 @@
             roomRef.set({ name: name, id: myId });
             roomRef.onDisconnect().remove();
 
+            // GERENCIAMENTO INTELIGENTE DE TÚNEL (FORQUILHA / CASCATA)
+            // Se o host já tiver 2 conexões diretas, direcionamos os novos viewers para retransmissores (viewers que já estão assistindo)
             roomRef.child('connections').on('child_added', snap => {
                 if (snap.val() && snap.val().request) {
-                    setupHostPeer(snap.key);
+                    setupHostPeer(myId, snap.key, localStream);
                 }
             });
         }
 
-        async function setupHostPeer(viewerId) {
+        async function setupHostPeer(sourceNodeId, viewerId, streamToShare) {
             const pc = new RTCPeerConnection(rtcConfig);
             activePeerConnections.push(pc);
             startBandwidthMonitor(activePeerConnections);
 
-            const ref = db.ref(`rooms/${myId}/connections/${viewerId}`);
+            // Se for o host original usa o path dele, senão usa o nó de repasse do viewer intermediário
+            const ref = db.ref(`rooms/${sourceNodeId}/connections/${viewerId}`);
             
-            if (localStream) {
-                localStream.getTracks().forEach(t => {
-                    const sender = pc.addTrack(t, localStream);
+            if (streamToShare) {
+                streamToShare.getTracks().forEach(t => {
+                    const sender = pc.addTrack(t, streamToShare);
                     if (t.kind === 'video' && sender.getParameters) {
                         try {
                             const parameters = sender.getParameters();
@@ -613,6 +618,8 @@
                     vid.srcObject = e.streams[0];
                     vid.play().catch(err => console.log("Erro ao reproduzir:", err));
                 }
+                // Ativa a forquilha: guarda a stream recebida para que este cliente possa repassá-la adiante se necessário
+                activeRelayStream = e.streams[0];
             };
 
             pc.onicecandidate = e => { if (e.candidate) ref.child('viewerCandidates').push(e.candidate.toJSON()); };
