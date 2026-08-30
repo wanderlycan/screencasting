@@ -3,12 +3,146 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Backseat P2P - Master Edition (Optimized)</title>
-    <!-- Firebase SDKs -->
+    <title>Backseat P2P - Master Edition (Live Bandwidth Meter)</title>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
-    <!-- Estilos Externos -->
-    <link rel="stylesheet" href="style.css">
+    <style>
+        :root { --primary: #00d4ff; --bg: #0b0e14; --panel: #151921; --text: #e1e1e1; --success: #00ff88; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+
+        .sidebar { width: 300px; background: #0f1218; border-right: 1px solid #1e2530; display: flex; flex-direction: column; flex-shrink: 0; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2000; position: relative; height: 100%; }
+        .sidebar.collapsed { transform: translateX(-100%); position: absolute; height: 100%; }
+        .sidebar-header { padding: 15px; background: #1a202c; border-bottom: 2px solid var(--primary); display: flex; flex-direction: column; gap: 8px; position: relative; z-index: 10; }
+        
+        .server-list { flex-grow: 1; overflow-y: auto; padding: 10px; }
+        .server-item { background: var(--panel); padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #333; cursor: pointer; transition: background 0.2s; }
+        .server-item:hover { background: #1c2331; }
+
+        .viewer-container { flex-grow: 1; display: flex; flex-direction: column; position: relative; width: 100%; height: 100%; overflow: hidden; }
+        
+        .top-bar { padding: 0 15px; background: #161a22; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #333; height: 60px; z-index: 10; flex-shrink: 0; }
+        
+        .btn-toggle { background: var(--primary); color: #000; border: none; width: 40px; height: 40px; border-radius: 8px; font-size: 1.2em; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+        .btn-toggle:hover { background: #00b3e6; }
+
+        .top-bar-actions { display: flex; align-items: center; gap: 12px; position: relative; z-index: 15; }
+        .top-btn { background: none; border: none; color: #fff; font-size: 1.3em; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 8px; transition: background 0.2s; }
+        .top-btn:hover { background: rgba(255, 255, 255, 0.08); }
+
+        .audio-wrapper { position: relative; display: flex; align-items: center; }
+        #audio-led { width: 8px; height: 8px; background: #333; border-radius: 50%; position: absolute; top: 6px; right: 6px; pointer-events: none; }
+        .led-active { background: var(--success) !important; box-shadow: 0 0 8px var(--success); }
+
+        .audio-dropdown { position: absolute; top: 50px; right: 0; background: #1a202c; border: 1px solid #333; padding: 12px 15px; border-radius: 10px; display: none; flex-direction: column; gap: 8px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); z-index: 3000; min-width: 180px; }
+        .audio-dropdown.show { display: flex; }
+        .audio-dropdown label { font-size: 0.75em; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; }
+        .audio-dropdown input[type="range"] { width: 100%; margin: 0; cursor: pointer; }
+
+        #source-picker { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.9); display: none; flex-direction: column; padding: 40px; z-index: 9999; overflow-y: auto; align-items: center; }
+        .source-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 15px; width: 100%; max-width: 1000px; margin-top: 20px; }
+        .source-card { background: #252d3d; border-radius: 8px; padding: 10px; cursor: pointer; text-align: center; border: 2px solid transparent; transition: 0.2s; }
+        .source-card:hover { border-color: var(--primary); transform: scale(1.05); }
+        .source-card img { width: 100%; border-radius: 4px; margin-bottom: 5px; }
+        .source-card span { font-size: 11px; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .stage { flex-grow: 1; background: #000; position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        #remote-video { width: 100%; height: 100%; object-fit: contain; }
+        #local-preview { width: 100%; height: 100%; object-fit: contain; }
+
+        /* JANELA FLUTUANTE DA PRÉVIA */
+        #floating-preview {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            width: 350px;
+            height: 220px;
+            background: #111;
+            border: 2px solid var(--primary);
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            z-index: 3500;
+            display: none;
+            overflow: hidden;
+        }
+
+        .preview-header {
+            background: #1a202c;
+            padding: 8px 12px;
+            cursor: move;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--primary);
+            border-bottom: 1px solid #333;
+            user-select: none;
+            height: 35px;
+        }
+
+        .preview-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .size-control-wrapper { position: relative; display: flex; align-items: center; }
+        .size-dropdown { 
+            position: absolute; top: 35px; right: 0; background: #1a202c; border: 1px solid #333; 
+            padding: 12px 15px; border-radius: 10px; display: none; flex-direction: column; gap: 6px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.7); z-index: 4000; min-width: 180px; 
+        }
+        .size-dropdown.show { display: flex; }
+        .size-dropdown label { font-size: 0.75em; color: #aaa; text-transform: uppercase; letter-spacing: 0.5px; display: flex; justify-content: space-between; }
+        .size-dropdown input[type="range"] { width: 100%; margin: 0; cursor: pointer; accent-color: var(--primary); }
+
+        .preview-body {
+            width: 100%;
+            height: calc(100% - 35px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            overflow: hidden;
+        }
+
+        .preview-control-bar {
+            background: #11161d;
+            border: 1px solid #333;
+            padding: 8px 10px;
+            border-radius: 4px;
+            margin-top: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 5px;
+        }
+
+        .preview-control-bar button {
+            padding: 6px 12px;
+            border-radius: 4px;
+            border: 1px solid #333;
+            background: #1a202c;
+            color: var(--text);
+            font-size: 0.8em;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+        }
+
+        .preview-control-bar button:hover {
+            border-color: var(--primary);
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        input[type="text"] { background: #11161d; border: 1px solid #333; color: white; padding: 8px 10px; border-radius: 4px; width: 100%; font-size: 0.9em; }
+        .btn-host { background: var(--primary); color: #000; padding: 10px; border-radius: 4px; border: none; font-weight: bold; cursor: pointer; width: 100%; transition: opacity 0.2s; font-size: 0.9em; position: relative; z-index: 1; }
+        .btn-host:hover { opacity: 0.9; }
+        #btn-stop { background: #ff4d4d !important; color: white; display: none; }
+
+        #click-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 50; text-align: center; }
+    </style>
 </head>
 <body>
     <div id="source-picker">
@@ -17,43 +151,44 @@
         <button onclick="document.getElementById('source-picker').style.display='none'" style="margin-top:20px; background:#444; color:#fff; padding:10px 20px; border:none; border-radius:5px; cursor:pointer;">Cancelar</button>
     </div>
 
+    <!-- JANELA FLUTUANTE DA PRÉVIA -->
+    <div id="floating-preview">
+        <div class="preview-header" id="preview-header">
+            <span>📺 Prévia</span>
+            <div class="preview-header-actions">
+                <div class="size-control-wrapper">
+                    <button class="top-btn" onclick="toggleSizeMenu(event)" title="Ajustar Tamanho (1% - 100%)" style="width: 28px; height: 28px; font-size: 0.9em;">📏</button>
+                    <div class="size-dropdown" id="size-dropdown" onclick="event.stopPropagation()">
+                        <label>Tamanho: <span id="size-val-label">30%</span></label>
+                        <input type="range" id="preview-size-range" min="1" max="100" value="30" oninput="changePreviewSizeSlider(this.value)">
+                    </div>
+                </div>
+                <span onclick="togglePreview()" style="cursor:pointer; padding: 0 5px; font-size: 1.1em;">✕</span>
+            </div>
+        </div>
+        <div class="preview-body">
+            <video id="local-preview" autoplay playsinline muted></video>
+        </div>
+    </div>
+
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <h3 style="margin:0; color:var(--primary);">🕹️ BACKSEAT P2P</h3>
             <input type="text" id="host-name" placeholder="Nick da Sala">
             
-            <!-- Menu Expansivo de Taxa de Bits -->
-            <label style="font-size:0.75em; color:#888; margin-top:2px;">TAXA DE BITS / QUALIDADE</label>
-            <div class="custom-dropdown-container">
-                <div class="custom-btn-select" onclick="toggleMenu(event, 'bitrate-menu')">
-                    <span id="selected-bitrate-label">⚡ 6 Mbps (1080p 60FPS)</span>
-                    <span>▼</span>
-                </div>
-                <div class="custom-menu" id="bitrate-menu">
-                    <div class="custom-option" onclick="selectBitrate(2500, '2.5 Mbps (720p 30FPS - Leve)')">2.5 Mbps <span>Para conexões fracas</span></div>
-                    <div class="custom-option" onclick="selectBitrate(4000, '4 Mbps (720p 60FPS - Fluido)')">4 Mbps <span>Boa fluidez HD</span></div>
-                    <div class="custom-option" onclick="selectBitrate(6000, '6 Mbps (1080p 60FPS - Ideal)')">6 Mbps <span>Full HD Recomendado</span></div>
-                    <div class="custom-option" onclick="selectBitrate(12000, '12 Mbps (1440p 2K - Extremo)')">12 Mbps <span>Qualidade 2K</span></div>
-                    <div class="custom-option" onclick="selectBitrate(25000, '25 Mbps (4K 60FPS - Ultra)')">25 Mbps <span>Máxima definição 4K</span></div>
-                </div>
+            <!-- MEDIDOR DE BANDA EM TEMPO REAL -->
+            <div style="background: #11161d; border: 1px solid #333; padding: 10px; border-radius: 6px; margin-top: 4px;">
+                <label style="font-size:0.7em; color:#888; display: block; margin-bottom: 2px;">USO DE BANDA (UPLOAD AO VIVO)</label>
+                <div id="bandwidth-meter" style="font-size: 0.9em; color: var(--success); font-weight: bold;">0.00 Mbps (Inativo)</div>
             </div>
 
-            <!-- Menu Expansivo de Codec -->
-            <label style="font-size:0.75em; color:#888; margin-top:2px;">CODEC DE VÍDEO</label>
-            <div class="custom-dropdown-container">
-                <div class="custom-btn-select" onclick="toggleMenu(event, 'codec-menu')">
-                    <span id="selected-codec-label">🎬 VP8 (Padrão Compatível)</span>
-                    <span>▼</span>
-                </div>
-                <div class="custom-menu" id="codec-menu">
-                    <div class="custom-option" onclick="selectCodec('VP8', '🎬 VP8 (Padrão Compatível)')">VP8 <span>Maior compatibilidade geral</span></div>
-                    <div class="custom-option" onclick="selectCodec('VP9', '🚀 VP9 (Alta Eficiência / 4K)')">VP9 <span>Excelente para 2K e 4K</span></div>
-                    <div class="custom-option" onclick="selectCodec('H264', '💻 H.264 (Compatibilidade de Hardware)')">H.264 <span>Bom para placas mais antigas</span></div>
-                    <div class="custom-option" onclick="selectCodec('AV1', '✨ AV1 (Ultra Compressão / Moderno)')">AV1 <span>Qualidade máxima com menos banda</span></div>
-                </div>
+            <!-- CONTROLE DE LIGAR/DESLIGAR A PRÉVIA -->
+            <label style="font-size:0.75em; color:#888; margin-top:4px;">PRÉVIA DA TRANSMISSÃO</label>
+            <div class="preview-control-bar">
+                <button onclick="togglePreview()" id="btn-toggle-preview">📺 Ligar Prévia</button>
             </div>
 
-            <button class="btn-host" id="btn-start" onclick="hostGame()" style="margin-top: 5px;">CRIAR SALA</button>
+            <button class="btn-host" id="btn-start" onclick="hostGame()" style="margin-top: 5px;">CRIAR SALA INTELIGENTE</button>
             <button class="btn-host" id="btn-stop" onclick="location.reload()" style="margin-top: 5px;">FECHAR SALA</button>
         </div>
         <div class="server-list" id="server-list"></div>
@@ -62,12 +197,7 @@
     <div class="viewer-container">
         <div class="top-bar">
             <button class="btn-toggle" id="btn-toggle-org" onclick="toggleSidebar()" title="Menu">☰</button>
-            <div style="display: flex; align-items: center; gap: 15px;">
-                <div id="status-text" style="font-size: 0.8em; color: #888;">Online</div>
-                <div id="viewer-badge" style="font-size: 0.8em; color: var(--primary); background: rgba(0, 212, 255, 0.1); padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(0, 212, 255, 0.2);">
-                    👁️ <span id="viewer-count">0</span> espectadores
-                </div>
-            </div>
+            <div id="status-text" style="font-size: 0.8em; color: #888;">Online</div>
             <div class="top-bar-actions">
                 <button class="top-btn" onclick="handleDownload()" title="Baixar / Download">📥</button>
                 <div class="audio-wrapper">
@@ -90,11 +220,446 @@
                 <button style="background: var(--primary); color: #000; padding: 15px 30px; font-size: 1.2em; border-radius:8px; border:none; font-weight:bold; cursor:pointer;">ENTRAR NA PARTIDA</button>
             </div>
             <video id="remote-video" autoplay playsinline></video>
-            <video id="local-preview" autoplay playsinline muted></video>
         </div>
     </div>
 
-    <!-- Script Principal Externo -->
-    <script src="app.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyBIT8Yvb0rblzxL-5uMre04on0MkUxSxbo",
+            authDomain: "banded-splicer-381114.firebaseapp.com",
+            databaseURL: "https://banded-splicer-381114-default-rtdb.firebaseio.com",
+            projectId: "banded-splicer-381114",
+            storageBucket: "banded-splicer-381114.firebasestorage.app",
+            messagingSenderId: "1094034826066",
+            appId: "1:1094034826066:web:85597ac00127422631108b"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] };
+        const myId = Math.random().toString(36).substring(7);
+
+        let selectedBitrateKbps = 6000;
+        let selectedCodec = 'VP9';
+        let activePeerConnections = [];
+        let bandwidthInterval = null;
+
+        window.onload = () => {
+            initDraggable();
+        };
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('collapsed');
+        }
+
+        function toggleSizeMenu(e) {
+            e.stopPropagation();
+            document.querySelectorAll('.audio-dropdown').forEach(m => m.classList.remove('show'));
+            const dropdown = document.getElementById('size-dropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        function toggleAudioMenu(e) {
+            e.stopPropagation();
+            document.querySelectorAll('.size-dropdown').forEach(m => m.classList.remove('show'));
+            const dropdown = document.getElementById('audio-dropdown');
+            dropdown.classList.toggle('show');
+        }
+
+        window.addEventListener('click', () => {
+            document.querySelectorAll('.audio-dropdown, .size-dropdown').forEach(m => m.classList.remove('show'));
+        });
+
+        function handleDownload() {
+            window.open('https://github.com/wanderlycan/screencasting/releases/download/v1.0.0/backseat-p2p.1.0.0.exe', '_blank');
+        }
+
+        // --- SISTEMA DE MEDIÇÃO DE BANDA EM TEMPO REAL ---
+        async function runSmartOptimization() {
+            try {
+                if (window.RTCRtpSender && RTCRtpSender.getCapabilities) {
+                    const capabilities = RTCRtpSender.getCapabilities('video');
+                    const codecs = capabilities.codecs.map(c => c.mimeType.toUpperCase());
+                    if (codecs.some(c => c.includes('AV1'))) selectedCodec = 'AV1';
+                    else if (codecs.some(c => c.includes('VP9'))) selectedCodec = 'VP9';
+                    else selectedCodec = 'VP8';
+                }
+            } catch (e) {
+                selectedCodec = 'VP9';
+            }
+
+            try {
+                const startTime = performance.now();
+                const response = await fetch('https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png', { cache: 'no-store' });
+                await response.blob();
+                const durationSeconds = (performance.now() - startTime) / 1000;
+                
+                if (durationSeconds < 0.3) selectedBitrateKbps = 15000;
+                else if (durationSeconds < 0.7) selectedBitrateKbps = 6000;
+                else selectedBitrateKbps = 3000;
+            } catch (e) {
+                selectedBitrateKbps = 5000;
+            }
+        }
+
+        function startBandwidthMonitor(pcList) {
+            const meterElem = document.getElementById('bandwidth-meter');
+            if (bandwidthInterval) clearInterval(bandwidthInterval);
+
+            let lastBytes = 0;
+            let lastTime = performance.now();
+
+            bandwidthInterval = setInterval(async () => {
+                let totalBytesSent = 0;
+                for (let pc of pcList) {
+                    try {
+                        const stats = await pc.getStats();
+                        stats.forEach(report => {
+                            if (report.type === 'outbound-rtp' && report.mediaType === 'video') {
+                                totalBytesSent += report.bytesSent || 0;
+                            }
+                        });
+                    } catch(err) {}
+                }
+
+                const now = performance.now();
+                const durationSec = (now - lastTime) / 1000;
+                if (durationSec > 0 && lastBytes > 0) {
+                    const bytesDiff = totalBytesSent - lastBytes;
+                    const mbps = ((bytesDiff * 8) / (durationSec * 1000000)).toFixed(2);
+                    meterElem.innerText = `${mbps} Mbps (Transmitindo)`;
+                } else {
+                    meterElem.innerText = `0.00 Mbps (Conectado)`;
+                }
+                lastBytes = totalBytesSent;
+                lastTime = now;
+            }, 1000);
+        }
+
+        let audioCtx;
+        function startLED(stream) {
+            try {
+                if (!stream || stream.getAudioTracks().length === 0) return;
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const analyser = audioCtx.createAnalyser();
+                const source = audioCtx.createMediaStreamSource(stream);
+                source.connect(analyser);
+                analyser.fftSize = 32;
+                const data = new Uint8Array(analyser.frequencyBinCount);
+                const led = document.getElementById('audio-led');
+                function pulse() {
+                    analyser.getByteFrequencyData(data);
+                    let vol = data.reduce((a,b) => a+b) / data.length;
+                    if (vol > 10) led.classList.add('led-active'); else led.classList.remove('led-active');
+                    requestAnimationFrame(pulse);
+                }
+                pulse();
+            } catch(e) {}
+        }
+
+        function optimizeSDP(sdp, bitrateKbps, codecPreference) {
+            let lines = sdp.split('\r\n');
+            let lineIndex = -1;
+            
+            for (let i = 0; i < lines.length; i++) {
+                if (lines[i].startsWith('a=mid:video')) {
+                    lineIndex = i;
+                    break;
+                }
+            }
+            
+            if (lineIndex !== -1) {
+                lines.splice(lineIndex + 1, 0, `b=AS:${bitrateKbps}`);
+            }
+
+            if (codecPreference) {
+                let codecRtpMapId = null;
+                for (let i = 0; i < lines.length; i++) {
+                    if (lines[i].startsWith('a=rtpmap:') && lines[i].toUpperCase().includes(codecPreference)) {
+                        let parts = lines[i].split(':');
+                        if (parts[1]) {
+                            codecRtpMapId = parts[1].split(' ')[0];
+                        }
+                    }
+                }
+
+                if (codecRtpMapId) {
+                    for (let i = 0; i < lines.length; i++) {
+                        if (lines[i].startsWith('m=video')) {
+                            let parts = lines[i].split(' ');
+                            let proto = parts[0];
+                            let port = parts[1];
+                            let transport = parts[2];
+                            let formats = parts.slice(3);
+                            
+                            formats = formats.filter(f => f !== codecRtpMapId);
+                            formats.unshift(codecRtpMapId);
+                            
+                            lines[i] = `${proto} ${port} ${transport} ${formats.join(' ')}`;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            return lines.join('\r\n');
+        }
+
+        let localStream;
+        async function hostGame() {
+            const name = document.getElementById('host-name').value || "Host";
+            await runSmartOptimization();
+
+            try {
+                let maxRes = selectedBitrateKbps >= 12000 ? 3840 : (selectedBitrateKbps >= 6000 ? 1920 : 1280);
+                if (typeof require !== 'undefined') {
+                    const { ipcRenderer } = require('electron');
+                    const sources = await ipcRenderer.invoke('get-sources');
+
+                    const picker = document.getElementById('source-picker');
+                    const grid = document.getElementById('source-grid');
+                    grid.innerHTML = '';
+                    picker.style.display = 'flex';
+
+                    sources.forEach(source => {
+                        if (source.name.includes("Backseat P2P")) return;
+                        const card = document.createElement('div');
+                        card.className = 'source-card';
+                        card.innerHTML = `<img src="${source.thumbnail}"><span>${source.name}</span>`;
+                        card.onclick = () => startCapture(source.id, name, maxRes);
+                        grid.appendChild(card);
+                    });
+                } else {
+                    const stream = await navigator.mediaDevices.getDisplayMedia({
+                        video: { 
+                            width: { ideal: maxRes }, 
+                            height: { ideal: maxRes === 3840 ? 2160 : (maxRes === 1920 ? 1080 : 720) }, 
+                            frameRate: { ideal: 60, max: 60 },
+                            cursor: "always"
+                        },
+                        audio: true
+                    });
+                    finalizeHost(stream, name);
+                }
+            } catch (e) { alert("Erro ao abrir: " + e.message); }
+        }
+
+        async function startCapture(sourceId, name, maxRes) {
+            try {
+                document.getElementById('source-picker').style.display = 'none';
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: { mandatory: { chromeMediaSource: 'desktop' } },
+                    video: {
+                        mandatory: {
+                            chromeMediaSource: 'desktop',
+                            chromeMediaSourceId: sourceId,
+                            minWidth: 1280, maxWidth: maxRes, 
+                            minHeight: 720, maxHeight: maxRes === 3840 ? 2160 : (maxRes === 1920 ? 1080 : 720),
+                            maxFrameRate: 60
+                        }
+                    }
+                });
+                finalizeHost(stream, name);
+            } catch (e) { alert("Erro ao capturar: " + e.message); }
+        }
+
+        function finalizeHost(stream, name) {
+            localStream = stream;
+            document.getElementById('local-preview').srcObject = localStream;
+            document.getElementById('btn-start').style.display = 'none';
+            document.getElementById('btn-stop').style.display = 'block';
+            startLED(localStream);
+            
+            const roomRef = db.ref('rooms/' + myId);
+            roomRef.set({ name: name, id: myId });
+            roomRef.onDisconnect().remove();
+
+            const connectionsRef = roomRef.child('connections');
+            connectionsRef.off();
+            connectionsRef.on('child_added', snap => {
+                if (snap.val() && snap.val().request) {
+                    setupHostPeer(snap.key);
+                }
+            });
+
+            setTimeout(() => {
+                if(window.innerWidth < 768) {
+                    const sidebar = document.getElementById('sidebar');
+                    if(!sidebar.classList.contains('collapsed')) toggleSidebar();
+                }
+            }, 200);
+        }
+
+        async function setupHostPeer(viewerId) {
+            const pc = new RTCPeerConnection(rtcConfig);
+            activePeerConnections.push(pc);
+            startBandwidthMonitor(activePeerConnections);
+
+            const ref = db.ref(`rooms/${myId}/connections/${viewerId}`);
+            
+            if (localStream) {
+                localStream.getTracks().forEach(t => {
+                    const sender = pc.addTrack(t, localStream);
+                    if (t.kind === 'video' && sender.getParameters) {
+                        try {
+                            const parameters = sender.getParameters();
+                            if (!parameters.encodings) parameters.encodings = [{}];
+                            parameters.encodings[0].maxBitrate = selectedBitrateKbps * 1000;
+                            parameters.encodings[0].networkPriority = "high";
+                            parameters.encodings[0].scaleResolutionDownBy = 1.0;
+                            sender.setParameters(parameters).catch(err => {});
+                        } catch (e) {}
+                    }
+                });
+            }
+
+            pc.onicecandidate = e => { 
+                if (e.candidate) ref.child('hostCandidates').push(e.candidate.toJSON()); 
+            };
+
+            try {
+                let offer = await pc.createOffer();
+                offer.sdp = optimizeSDP(offer.sdp, selectedBitrateKbps, selectedCodec);
+                
+                await pc.setLocalDescription(offer);
+                await ref.update({ offer: { type: offer.type, sdp: offer.sdp } });
+
+                ref.child('answer').on('value', async snap => {
+                    const answerVal = snap.val();
+                    if (answerVal && !pc.currentRemoteDescription) {
+                        await pc.setRemoteDescription(new RTCSessionDescription(answerVal));
+                    }
+                });
+
+                ref.child('viewerCandidates').on('child_added', snap => {
+                    const candidateVal = snap.val();
+                    if (candidateVal) {
+                        pc.addIceCandidate(new RTCIceCandidate(candidateVal)).catch(e => {});
+                    }
+                });
+            } catch(err) {
+                console.error("Erro no setupHostPeer:", err);
+            }
+        }
+
+        db.ref('rooms').on('value', snap => {
+            const list = document.getElementById('server-list');
+            list.innerHTML = "";
+            const rooms = snap.val();
+            if (!rooms) return;
+            for (let id in rooms) {
+                if (id === myId) continue;
+                const div = document.createElement('div');
+                div.className = "server-item";
+                div.innerText = rooms[id].name;
+                div.onclick = () => { 
+                    connect(id); 
+                    if(window.innerWidth < 768) toggleSidebar(); 
+                };
+                list.appendChild(div);
+            }
+        });
+
+        async function connect(hostId) {
+            const viewerId = Math.random().toString(36).substring(7);
+            const pc = new RTCPeerConnection(rtcConfig);
+            const ref = db.ref(`rooms/${hostId}/connections/${viewerId}`);
+
+            pc.ontrack = e => {
+                const vid = document.getElementById('remote-video');
+                vid.srcObject = e.streams[0];
+                startLED(e.streams[0]);
+                vid.play().catch(() => document.getElementById('click-overlay').style.display = 'flex');
+            };
+
+            pc.onicecandidate = e => { 
+                if (e.candidate) ref.child('viewerCandidates').push(e.candidate.toJSON()); 
+            };
+
+            await ref.set({ request: true });
+
+            ref.child('offer').on('value', async snap => {
+                const offerVal = snap.val();
+                if (offerVal && !pc.currentRemoteDescription) {
+                    await pc.setRemoteDescription(new RTCSessionDescription(offerVal));
+                    let answer = await pc.createAnswer();
+                    answer.sdp = optimizeSDP(answer.sdp, selectedBitrateKbps, selectedCodec);
+                    await pc.setLocalDescription(answer);
+                    await ref.update({ answer: { type: answer.type, sdp: answer.sdp } });
+                }
+            });
+
+            ref.child('hostCandidates').on('child_added', snap => {
+                const candidateVal = snap.val();
+                if (candidateVal) {
+                    pc.addIceCandidate(new RTCIceCandidate(candidateVal)).catch(e => {});
+                }
+            });
+        }
+
+        function unmuteVideo() { 
+            if(audioCtx) audioCtx.resume(); 
+            document.getElementById('remote-video').play(); 
+            document.getElementById('click-overlay').style.display = 'none'; 
+        }
+
+        function togglePreview() {
+            const preview = document.getElementById('floating-preview');
+            const btn = document.getElementById('btn-toggle-preview');
+            if (preview.style.display === 'none' || preview.style.display === '') {
+                preview.style.display = 'block';
+                btn.innerText = '📺 Desligar Prévia';
+            } else {
+                preview.style.display = 'none';
+                btn.innerText = '📺 Ligar Prévia';
+            }
+        }
+
+        function changePreviewSizeSlider(percent) {
+            document.getElementById('size-val-label').innerText = percent + '%';
+            const preview = document.getElementById('floating-preview');
+            const screenW = window.innerWidth;
+            const screenH = window.innerHeight;
+            
+            preview.style.width = Math.max(150, (screenW * percent) / 100) + 'px';
+            preview.style.height = Math.max(100, (screenH * percent) / 100) + 'px';
+        }
+
+        function initDraggable() {
+            const preview = document.getElementById('floating-preview');
+            const header = document.getElementById('preview-header');
+            let isDragging = false;
+            let startX, startY, initialX, initialY;
+
+            header.addEventListener('mousedown', dragStart);
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', dragEnd);
+
+            header.addEventListener('touchstart', dragStart, {passive: true});
+            document.addEventListener('touchmove', drag, {passive: true});
+            document.addEventListener('touchend', dragEnd);
+
+            function dragStart(e) {
+                if (e.target.closest('.size-dropdown') || e.target.closest('button') || (e.target.tagName === 'SPAN' && e.target.innerText === '✕')) return;
+                isDragging = true;
+                startX = e.clientX || e.touches[0].clientX;
+                startY = e.clientY || e.touches[0].clientY;
+                initialX = preview.offsetLeft;
+                initialY = preview.offsetTop;
+            }
+
+            function drag(e) {
+                if (!isDragging) return;
+                let currentX = e.clientX || e.touches[0].clientX;
+                let currentY = e.clientY || e.touches[0].clientY;
+                preview.style.left = (initialX + (currentX - startX)) + 'px';
+                preview.style.top = (initialY + (currentY - startY)) + 'px';
+            }
+
+            function dragEnd() {
+                isDragging = false;
+            }
+        }
+    </script>
 </body>
 </html>
