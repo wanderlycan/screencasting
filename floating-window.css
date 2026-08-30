@@ -1,0 +1,13 @@
+.floating-window {
+    position: absolute;
+    background: #111;
+    border: 2px solid var(--primary);
+    border-radius: 8px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    z-index: 3500;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    /* ISSO AQUI TRAVA O CANTO SUPERIOR DIREITO NO LUGAR */
+    transform-origin: top right; 
+}
