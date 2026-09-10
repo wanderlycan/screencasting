@@ -1,9 +1,3 @@
-
-Conversa com o Gemini
-eu to com esse site, netssa pagina, so que nao tenho um readme para ele, eu queria um readme para ele com tags para que quando a pessoa pesquisar apareça tanto no git, quanto no google entende?
-
-(Nota: Para a captura de áudio do sistema funcionar perfeitamente em alguns navegadores web, é recomendado o uso de HTTPS ou localhost).
-
 🔍 Tags e SEO (Search Engine Optimization)
 Nota para indexação: As palavras-chave abaixo ajudam o Google e a busca do GitHub a recomendarem este repositório para usuários buscando alternativas de compartilhamento de tela.
 
