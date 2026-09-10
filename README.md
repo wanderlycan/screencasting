@@ -1,38 +1,3 @@
-🔍 Tags e SEO (Search Engine Optimization)
-Nota para indexação: As palavras-chave abaixo ajudam o Google e a busca do GitHub a recomendarem este repositório para usuários buscando alternativas de compartilhamento de tela.
-
-Tópicos (GitHub Topics):
-
-webrtc p2p screencasting discord-alternative screen-share firebase javascript gamecast streaming peer-to-peer
-
-Keywords (Google Search):
-
-Screencasting P2P, alternativa ao Discord para compartilhar tela, compartilhar tela de jogos sem lag, WebRTC screen share, transmissão de tela P2P, assistir amigos jogando, gamecast master edition, Backseat P2P, streaming leve para gamers, open source screen sharing HTML JS.
-
-with open("README.md", "w", encoding="utf-8") as f:
-f.write(markdown_content)
-
-print("[file-tag: generated-readme-md-v1]")
-
-
-```text?code_stdout&code_event_index=1
-[file-tag: generated-readme-md-v1]
-
-Seu arquivo README.md está pronto!
-
-Ícone do app MD
-README
- MD 
-Criei o documento destacando exatamente o propósito do seu código (as tecnologias WebRTC e Firebase, o foco em gamers, janelas flutuantes e otimização de banda).
-
-No final do arquivo, incluí uma seção estruturada de Tags e SEO. Para garantir que o GitHub indexe seu repositório perfeitamente, recomendo também que você vá na página principal do seu repositório no GitHub, clique no ícone de engrenagem ⚙️ (ao lado de "About" no canto direito) e adicione as palavras-chave da lista de tópicos diretamente na interface do GitHub (como webrtc, p2p, screencasting, discord-alternative). Isso fará com que o repositório apareça com muito mais frequência nas buscas nativas.
-
-
-
-
-O Gemini é uma IA e pode cometer erros.
-
-Analisando
 <div align="center">
   <h1>🎮 GameCast - Master Edition</h1>
   <p><strong>A alternativa definitiva, leve e P2P para compartilhamento de tela entre gamers.</strong></p>
@@ -107,5 +72,3 @@ cd screencasting
 <div align="center">
   Feito com ☕ e muito código. Se curtiu o projeto, considere apoiar via Pix diretamente na interface do app! ⭐ Deixe uma estrela no repositório!
 </div>
-README.md
-Exibindo README.md.
