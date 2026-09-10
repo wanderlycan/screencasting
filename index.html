@@ -154,6 +154,56 @@
         .btn-host { background: var(--primary); color: #000; padding: 10px; border-radius: 4px; border: none; font-weight: bold; cursor: pointer; width: 100%; transition: opacity 0.2s; font-size: 0.9em; position: relative; z-index: 1; }
         .btn-host:hover { opacity: 0.9; }
         #btn-stop { background: #ff4d4d !important; color: white; display: none; }
+
+        /* Apoio ao projeto: visível sem interromper a experiência */
+        .support-wrapper { position: relative; }
+        .support-btn {
+            width: auto; min-width: 96px; padding: 0 12px; gap: 6px;
+            color: #ffd166; border: 1px solid rgba(255, 209, 102, 0.45);
+            background: rgba(255, 209, 102, 0.08); font-size: 0.82em;
+            font-weight: 700; white-space: nowrap;
+        }
+        .support-btn:hover {
+            color: #111; background: #ffd166; border-color: #ffd166;
+            box-shadow: 0 0 18px rgba(255, 209, 102, 0.28);
+        }
+        .support-popover {
+            position: absolute; top: 48px; right: 0; width: 285px;
+            padding: 16px; border: 1px solid rgba(255, 209, 102, 0.5);
+            border-radius: 12px; background: #171b24;
+            box-shadow: 0 14px 38px rgba(0,0,0,0.65);
+            display: none; z-index: 5000;
+        }
+        .support-popover.show { display: block; animation: supportIn .18s ease-out; }
+        .support-popover h4 { color: #ffd166; margin: 0 0 7px; font-size: 1em; }
+        .support-popover p { color: #aaa; margin: 0 0 12px; line-height: 1.4; font-size: 0.78em; }
+        .pix-box {
+            display: flex; align-items: center; gap: 8px; padding: 8px;
+            border: 1px solid #343b49; border-radius: 8px; background: #10131a;
+        }
+        .pix-number {
+            min-width: 0; flex: 1; color: #fff; font-family: Consolas, monospace;
+            font-size: 0.95em; letter-spacing: 0.3px; user-select: all;
+        }
+        .pix-copy {
+            border: 0; border-radius: 6px; padding: 7px 9px;
+            color: #111; background: #ffd166; font-weight: 800; cursor: pointer;
+        }
+        .pix-feedback {
+            min-height: 16px; margin-top: 7px; color: var(--success);
+            text-align: center; font-size: 0.72em;
+        }
+        @keyframes supportIn {
+            from { opacity: 0; transform: translateY(-6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 620px) {
+            .support-btn { min-width: 40px; width: 40px; padding: 0; }
+            .support-label { display: none; }
+            .support-popover { position: fixed; top: 68px; right: 10px; width: min(285px, calc(100vw - 20px)); }
+            .top-bar-actions { gap: 5px; }
+        }
+
     </style>
 </head>
 <body>
@@ -212,6 +262,21 @@
             <button class="btn-toggle" id="btn-toggle-org" onclick="toggleSidebar()" title="Menu">☰</button>
             <div id="status-text" style="font-size: 0.8em; color: #888;">Online (GameCast Master)</div>
             <div class="top-bar-actions">
+                <div class="support-wrapper">
+                    <button class="top-btn support-btn" onclick="toggleSupport(event)" title="Apoie o GameCast">
+                        <span>☕</span><span class="support-label">Apoie</span>
+                    </button>
+                    <div class="support-popover" id="support-popover" onclick="event.stopPropagation()">
+                        <h4>☕ Gostou do GameCast?</h4>
+                        <p>Se o projeto foi útil, você pode pagar um cafezinho e ajudar a manter as melhorias.</p>
+                        <div class="pix-box">
+                            <span class="pix-number">16996804236</span>
+                            <button class="pix-copy" type="button" onclick="copyPix()">Copiar Pix</button>
+                        </div>
+                        <div class="pix-feedback" id="pix-feedback"></div>
+                    </div>
+                </div>
+
                 <button class="top-btn" onclick="handleDownload()" title="Baixar / Download">📥</button>
                 <button class="top-btn" onclick="document.getElementById('main-stage').requestFullscreen()" title="Tela Cheia">⛶</button>
             </div>
@@ -225,6 +290,37 @@
     </div>
 
     <script>
+
+        function toggleSupport(event) {
+            event.stopPropagation();
+            document.getElementById('support-popover').classList.toggle('show');
+        }
+
+        async function copyPix() {
+            const pix = '16996804236';
+            const feedback = document.getElementById('pix-feedback');
+            try {
+                await navigator.clipboard.writeText(pix);
+                feedback.textContent = '✓ Pix copiado. Muito obrigado!';
+            } catch (e) {
+                const input = document.createElement('textarea');
+                input.value = pix;
+                input.style.position = 'fixed';
+                input.style.opacity = '0';
+                document.body.appendChild(input);
+                input.select();
+                document.execCommand('copy');
+                input.remove();
+                feedback.textContent = '✓ Pix copiado. Muito obrigado!';
+            }
+            setTimeout(() => { feedback.textContent = ''; }, 3500);
+        }
+
+        document.addEventListener('click', () => {
+            const support = document.getElementById('support-popover');
+            if (support) support.classList.remove('show');
+        });
+
         const firebaseConfig = {
             apiKey: "AIzaSyBIT8Yvb0rblzxL-5uMre04on0MkUxSxbo",
             authDomain: "banded-splicer-381114.firebaseapp.com",
