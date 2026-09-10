@@ -244,6 +244,7 @@
         let activePeerConnections = [];
         let bandwidthInterval = null;
         let activeViewers = {};
+        let viewerConnections = {};
         let localStream = null;
 
         window.onload = () => {
@@ -343,6 +344,13 @@
         }
 
         function closeStreamWindow(hostId) {
+            const connection = viewerConnections[hostId];
+            if (connection) {
+                connection.cleanup.forEach(fn => fn());
+                connection.pc.close();
+                connection.ref.remove().catch(() => {});
+                delete viewerConnections[hostId];
+            }
             const win = document.getElementById('stream-win-' + hostId);
             if (win) win.remove();
             delete activeViewers[hostId];
@@ -559,6 +567,7 @@
 
         async function setupHostPeer(viewerId) {
             const pc = new RTCPeerConnection(rtcConfig);
+            const pendingCandidates = [];
             activePeerConnections.push(pc);
             startBandwidthMonitor(activePeerConnections);
 
@@ -587,11 +596,19 @@
 
             ref.child('answer').on('value', async snap => {
                 const answerVal = snap.val();
-                if (answerVal && !pc.currentRemoteDescription) await pc.setRemoteDescription(new RTCSessionDescription(answerVal));
+                if (answerVal && !pc.currentRemoteDescription) {
+                    await pc.setRemoteDescription(new RTCSessionDescription(answerVal));
+                    while (pendingCandidates.length) {
+                        await pc.addIceCandidate(pendingCandidates.shift()).catch(console.error);
+                    }
+                }
             });
 
             ref.child('viewerCandidates').on('child_added', snap => {
-                if (snap.val()) pc.addIceCandidate(new RTCIceCandidate(snap.val())).catch(e => {});
+                if (!snap.val()) return;
+                const candidate = new RTCIceCandidate(snap.val());
+                if (pc.remoteDescription) pc.addIceCandidate(candidate).catch(console.error);
+                else pendingCandidates.push(candidate);
             });
         }
 
@@ -604,7 +621,12 @@
                 if (id === myId) continue;
                 const div = document.createElement('div');
                 div.className = "server-item";
-                div.innerHTML = `<span>${rooms[id].name}</span> <button onclick="openStreamWindow('${id}', '${rooms[id].name}')">Assistir</button>`;
+                const name = document.createElement('span');
+                name.textContent = rooms[id].name || 'Sala sem nome';
+                const button = document.createElement('button');
+                button.textContent = 'Assistir';
+                button.onclick = () => openStreamWindow(id, rooms[id].name || 'Sala sem nome');
+                div.append(name, button);
                 list.appendChild(div);
             }
         });
@@ -613,9 +635,18 @@
             const viewerId = Math.random().toString(36).substring(7);
             const pc = new RTCPeerConnection(rtcConfig);
             const ref = db.ref(`rooms/${hostId}/connections/${viewerId}`);
+            const pendingCandidates = [];
+            const cleanup = [];
+            viewerConnections[hostId] = { pc, ref, cleanup };
+
+            const listen = (target, event, callback) => {
+                target.on(event, callback);
+                cleanup.push(() => target.off(event, callback));
+            };
 
             // Monitora se a sala do host desapareceu do Firebase (transmissão encerrada)
-            db.ref('rooms/' + hostId).on('value', snap => {
+            const roomRef = db.ref('rooms/' + hostId);
+            listen(roomRef, 'value', snap => {
                 if (!snap.exists()) {
                     closeStreamWindow(hostId);
                 }
@@ -632,11 +663,15 @@
             pc.onicecandidate = e => { if (e.candidate) ref.child('viewerCandidates').push(e.candidate.toJSON()); };
 
             await ref.set({ request: true });
+            ref.onDisconnect().remove();
 
-            ref.child('offer').on('value', async snap => {
+            listen(ref.child('offer'), 'value', async snap => {
                 const offerVal = snap.val();
                 if (offerVal && !pc.currentRemoteDescription) {
                     await pc.setRemoteDescription(new RTCSessionDescription(offerVal));
+                    while (pendingCandidates.length) {
+                        await pc.addIceCandidate(pendingCandidates.shift()).catch(console.error);
+                    }
                     let answer = await pc.createAnswer();
                     answer.sdp = optimizeSDP(answer.sdp, selectedBitrateKbps, selectedCodec);
                     await pc.setLocalDescription(answer);
@@ -644,8 +679,11 @@
                 }
             });
 
-            ref.child('hostCandidates').on('child_added', snap => {
-                if (snap.val()) pc.addIceCandidate(new RTCIceCandidate(snap.val())).catch(e => {});
+            listen(ref.child('hostCandidates'), 'child_added', snap => {
+                if (!snap.val()) return;
+                const candidate = new RTCIceCandidate(snap.val());
+                if (pc.remoteDescription) pc.addIceCandidate(candidate).catch(console.error);
+                else pendingCandidates.push(candidate);
             });
         }
 
